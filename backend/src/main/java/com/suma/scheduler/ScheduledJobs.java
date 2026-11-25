@@ -24,15 +24,38 @@ public class ScheduledJobs {
     private final EmailDeliveryService email;
     private final AttendanceSettingsService settings;
     private final RetentionService retention;
+    private final com.suma.ticket.SlaMonitorService slaMonitor;
+    private final com.suma.integration.IntegrationService integrations;
 
     public ScheduledJobs(JobRunner runner, AttendanceMaintenanceService attendance, MonthlyReportService monthly,
-                         EmailDeliveryService email, AttendanceSettingsService settings, RetentionService retention) {
+                         EmailDeliveryService email, AttendanceSettingsService settings, RetentionService retention,
+                         com.suma.ticket.SlaMonitorService slaMonitor, com.suma.integration.IntegrationService integrations) {
         this.runner = runner;
         this.attendance = attendance;
         this.monthly = monthly;
         this.email = email;
         this.settings = settings;
         this.retention = retention;
+        this.slaMonitor = slaMonitor;
+        this.integrations = integrations;
+    }
+
+    @Scheduled(fixedDelay = 60_000, initialDelay = 120_000)
+    @SchedulerLock(name = "integration-sync", lockAtMostFor = "PT30M")
+    public void integrationSync() {
+        runner.run("integration-sync", integrations::syncDue);
+    }
+
+    @Scheduled(fixedDelay = 60_000, initialDelay = 40_000)
+    @SchedulerLock(name = "sla-breach-detection", lockAtMostFor = "PT10M")
+    public void slaBreaches() {
+        runner.run("sla-breach-detection", slaMonitor::detectBreaches);
+    }
+
+    @Scheduled(cron = "0 40 * * * *", zone = "UTC")
+    @SchedulerLock(name = "ticket-pending-reminders", lockAtMostFor = "PT30M")
+    public void pendingReminders() {
+        runner.run("ticket-pending-reminders", () -> slaMonitor.pendingReminders() + slaMonitor.autoClose());
     }
 
     @Scheduled(fixedDelay = 300_000, initialDelay = 60_000)
