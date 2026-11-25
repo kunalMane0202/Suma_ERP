@@ -17,3 +17,4 @@ e2e/playwright-report/
 # runtime
 backend/uploads/
 *.log
+e2e/test-results/
