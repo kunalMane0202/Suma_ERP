@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: ${SUMA_TEST_DB_URL:jdbc:postgresql://localhost:5432/suma_test}
+    username: ${SUMA_TEST_DB_USER:suma}
+    password: ${SUMA_TEST_DB_PASSWORD:suma}
+  flyway:
+    clean-disabled: false
+  mail:
+    host: localhost
+    port: 3025
+suma:
+  jwt:
+    secret: test-only-secret-0123456789abcdef0123456789abcdef
+    access-ttl-minutes: 600
+    refresh-ttl-hours: 72
+  scheduling-enabled: false
+  demo-data: false
+  trusted-proxies: 10.0.0.0/8
+  login-rate-limit:
+    max-attempts: 100000
+    window-seconds: 60
+  uploads-dir: ./target/test-uploads
+logging:
+  level:
+    root: WARN
