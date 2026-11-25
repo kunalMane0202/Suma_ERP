@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: suma_test
+          POSTGRES_USER: suma
+          POSTGRES_PASSWORD: suma
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U suma" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Unit and integration tests
+        working-directory: backend
+        run: mvn -B verify
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run typecheck
+      - working-directory: frontend
+        run: npm test
+      - working-directory: frontend
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: suma
+          POSTGRES_USER: suma
+          POSTGRES_PASSWORD: suma
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U suma" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21", cache: maven }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Start backend with demo data
+        working-directory: backend
+        env:
+          SUMA_DEMO_DATA: "true"
+          SUMA_LOGIN_RATE_MAX: "1000"
+        run: |
+          mvn -B -q package -DskipTests
+          nohup java -jar target/suma-tracking-tool-*.jar > backend.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:8080/actuator/health && break; sleep 2; done
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          nohup npx vite --port 5173 --strictPort > vite.log 2>&1 &
+          sleep 5
+      - name: Playwright
+        working-directory: e2e
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+          npx playwright test --trace off
