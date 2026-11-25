@@ -58,8 +58,10 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    enabled: ${SUMA_API_DOCS_ENABLED:true}
   api-docs:
     path: /v3/api-docs
+    enabled: ${SUMA_API_DOCS_ENABLED:true}
 
 suma:
   jwt:

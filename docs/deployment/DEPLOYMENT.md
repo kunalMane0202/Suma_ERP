@@ -16,6 +16,7 @@
 | `SUMA_SCHEDULING_ENABLED` | Run background jobs on this node | `true` |
 | `SUMA_LOGIN_RATE_MAX` / `SUMA_LOGIN_RATE_WINDOW` | Login attempts per IP per window (seconds) | 20 / 300 |
 | `SUMA_UPLOADS_DIR` | Attachment storage path (persistent volume) | `./uploads` |
+| `SUMA_API_DOCS_ENABLED` | Serve Swagger UI and OpenAPI JSON (set `false` in production) | `true` |
 | `SUMA_DEMO_DATA` | Seed demonstration data — **never in production** | `false` |
 
 ## Production checklist
@@ -27,7 +28,8 @@
 5. Point SMTP at your relay and verify each project's Project Lead email in the UI before the 1st of the month.
 6. Set the attendance reporting timezone and policy thresholds (Configuration → Attendance). Break limits are intentionally empty until your organisation defines them.
 7. Back up the PostgreSQL volume and the uploads volume.
-8. Running several backend instances is supported: ShedLock makes each scheduled job run on one node at a time. The session-validation cache is per node (20 s), so a terminated session can survive up to 20 s on other nodes.
+8. Set `SUMA_API_DOCS_ENABLED=false`. With `SUMA_COOKIE_SECURE=true` the backend refuses to start if the JWT secret or encryption key are still the development defaults.
+9. Running several backend instances is supported: ShedLock makes each scheduled job run on one node at a time. The session-validation cache is per node (20 s), so a terminated session can survive up to 20 s on other nodes.
 
 ## Scheduled jobs
 

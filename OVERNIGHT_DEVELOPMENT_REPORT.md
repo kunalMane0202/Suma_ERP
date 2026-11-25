@@ -45,7 +45,7 @@ Fixes made because tests or inspection found real problems:
 - **Login security & IP monitoring:** successful/failed/unknown-user logins, anonymous/invalid/expired/revoked/denied/blocked requests with correlation IDs, trusted-proxy IP resolution (IPv4/IPv6), suspicious indicators, IP-change detection that never blocks, dashboard, searches, CSV exports, IP allow/deny rules.
 - **Scheduler:** 10 jobs with ShedLock and execution history (see docs/deployment/DEPLOYMENT.md).
 
-### Database — Flyway V1–V7, 64 tables
+### Database — Flyway V1–V7, 61 tables
 Includes every table requested in the brief (attendance_sessions, attendance_events, break_records, break_policies, break_reminders, idle_events, attendance_daily_summary, attendance_monthly_summary, attendance_report_logs, attendance_settings, login_activity_logs, anonymous_access_logs, ip_activity_logs, trusted_ip_rules, session_activity_logs) with unique constraints that prevent duplicate sessions, breaks, idle events, reminders, external tickets and monthly deliveries. See DATABASE_SCHEMA.md.
 
 ### Frontend (React 18 + Vite + TypeScript) — 20 pages
