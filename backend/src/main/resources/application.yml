@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: suma-tracking-tool
+  datasource:
+    url: ${SUMA_DB_URL:jdbc:postgresql://localhost:5432/suma}
+    username: ${SUMA_DB_USER:suma}
+    password: ${SUMA_DB_PASSWORD:suma}
+    hikari:
+      maximum-pool-size: ${SUMA_DB_POOL:15}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  mail:
+    host: ${SUMA_SMTP_HOST:localhost}
+    port: ${SUMA_SMTP_PORT:1025}
+    username: ${SUMA_SMTP_USER:}
+    password: ${SUMA_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SUMA_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SUMA_SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+server:
+  port: ${SUMA_PORT:8080}
+  forward-headers-strategy: none   # client IP is resolved by ClientIpResolver using trusted proxies only
+  error:
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+suma:
+  jwt:
+    # Must be overridden in every non-dev environment (min 32 bytes)
+    secret: ${SUMA_JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}
+    access-ttl-minutes: ${SUMA_ACCESS_TTL_MINUTES:15}
+    refresh-ttl-hours: ${SUMA_REFRESH_TTL_HOURS:14}
+  cookie-secure: ${SUMA_COOKIE_SECURE:false}
+  cors-origins: ${SUMA_CORS_ORIGINS:http://localhost:5173,http://localhost:4173}
+  trusted-proxies: ${SUMA_TRUSTED_PROXIES:}
+  encryption-key: ${SUMA_ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzJieXRlcyE=}
+  uploads-dir: ${SUMA_UPLOADS_DIR:./uploads}
+  mail-from: ${SUMA_MAIL_FROM:suma-noreply@localhost}
+  scheduling-enabled: ${SUMA_SCHEDULING_ENABLED:true}
+  bootstrap-admin:
+    username: ${SUMA_ADMIN_USERNAME:admin}
+    email: ${SUMA_ADMIN_EMAIL:admin@suma.local}
+    password: ${SUMA_ADMIN_PASSWORD:Admin@12345}
+  demo-data: ${SUMA_DEMO_DATA:false}
+  login-rate-limit:
+    max-attempts: ${SUMA_LOGIN_RATE_MAX:20}
+    window-seconds: ${SUMA_LOGIN_RATE_WINDOW:300}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"

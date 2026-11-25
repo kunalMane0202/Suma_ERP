@@ -1,0 +1,19 @@
+# build
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+# env / secrets
+.env
+*.env.local
+# ide
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# runtime
+backend/uploads/
+*.log
