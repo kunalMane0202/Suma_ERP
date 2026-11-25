@@ -86,7 +86,7 @@ public final class AttendanceDtos {
                                 String breakCategory, long todayBreakSeconds, int todayBreakCount, boolean breakExceeded,
                                 Instant idleSince) {}
 
-    public record DashboardView(LocalDate date, long employeesInScope, long loggedInToday, long currentlyActive, long onBreak,
+    public record DashboardView(LocalDate date, String timezone, long employeesInScope, long loggedInToday, long currentlyActive, long onBreak,
                                 long idle, long away, long loggedOut, long notLoggedIn, long missingLogout, long totalBreaksToday,
                                 long averageBreakSeconds, long exceedingBreakLimits, long attendanceExceptions,
                                 double compliancePercent, List<LiveStatusRow> live, List<HourBucket> loginsByHour) {}

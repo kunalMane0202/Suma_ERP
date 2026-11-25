@@ -35,7 +35,7 @@ public class AttendanceReportService {
     }
 
     public record Employee(UUID userId, String employeeCode, String fullName, String email, UUID projectId, String projectName,
-                           UUID teamId, String teamName, Set<Short> weeklyOffs) {}
+                           UUID teamId, String teamName, Set<Short> weeklyOffs, Instant createdAt) {}
 
     public record DailyRow(Employee employee, AttendanceCalculator.DayResult day) {}
 
@@ -69,7 +69,7 @@ public class AttendanceReportService {
         List<Employee> list = jdbc.query("""
                 select u.id, u.employee_code, u.full_name, u.email,
                   pp.project_id, pr.name as project_name, tt.team_id, t.name as team_name,
-                  (select string_agg(day_of_week::text, ',') from user_weekly_offs w where w.user_id = u.id) as offs
+                  (select string_agg(day_of_week::text, ',') from user_weekly_offs w where w.user_id = u.id) as offs, u.created_at
                 from users u
                 left join lateral (select pm.project_id from project_members pm join projects px on px.id = pm.project_id
                     where pm.user_id = u.id and (cast(:project as uuid) is null or pm.project_id = :project)
@@ -85,7 +85,7 @@ public class AttendanceReportService {
                 order by u.full_name
                 """, p, (rs, i) -> new Employee(rs.getObject("id", UUID.class), rs.getString("employee_code"), rs.getString("full_name"),
                 rs.getString("email"), rs.getObject("project_id", UUID.class), rs.getString("project_name"), rs.getObject("team_id", UUID.class),
-                rs.getString("team_name"), parseOffs(rs.getString("offs"))));
+                rs.getString("team_name"), parseOffs(rs.getString("offs")), rs.getTimestamp("created_at").toInstant()));
         return list.stream().filter(e -> visible == null || visible.contains(e.userId())).toList();
     }
 
@@ -180,7 +180,7 @@ public class AttendanceReportService {
             List<BreakRecord> bs = d.breaks.getOrDefault(key(e.userId(), d0), List.of());
             ss.forEach(s -> loginsByHour[s.getLoginAt().atZone(zone).getHour()]++);
             bs.forEach(b -> breaksByHour[b.getStartedAt().atZone(zone).getHour()]++);
-            if (!day.weeklyOff()) expected++;
+            if (!day.weeklyOff() && (!isToday || day.present())) expected++;
             if (day.present()) logged++;
             if (day.missingLogout()) missing++;
             breaksTotal += day.breakCount();
@@ -216,7 +216,7 @@ public class AttendanceReportService {
         }
         List<AttendanceDtos.HourBucket> hours = new ArrayList<>();
         for (int h = 0; h < 24; h++) hours.add(new AttendanceDtos.HourBucket(h, loginsByHour[h], breaksByHour[h]));
-        return new AttendanceDtos.DashboardView(d0, people.size(), logged, active, onBreak, idle, away, loggedOut, notLogged, missing,
+        return new AttendanceDtos.DashboardView(d0, zone.getId(), people.size(), logged, active, onBreak, idle, away, loggedOut, notLogged, missing,
                 breaksTotal, breaksTotal == 0 ? 0 : breakSeconds / breaksTotal, exceeding, exceptions,
                 expected == 0 ? 100.0 : Math.round(compliant * 1000.0 / expected) / 10.0, live, hours);
     }
@@ -247,10 +247,16 @@ public class AttendanceReportService {
 
     private AttendanceCalculator.DayResult compute(Employee e, LocalDate date, Data d, ZoneId zone, Instant now) {
         AttendanceSettings cfg = settings.effective(e.projectId());
-        return AttendanceCalculator.computeDay(date, d.sessions.getOrDefault(key(e.userId(), date), List.of()),
+        AttendanceCalculator.DayResult r = AttendanceCalculator.computeDay(date, d.sessions.getOrDefault(key(e.userId(), date), List.of()),
                 d.breaks.getOrDefault(key(e.userId(), date), List.of()), d.idles.getOrDefault(key(e.userId(), date), List.of()),
                 new AttendanceCalculator.Limits(cfg.getMaxDailyBreakMinutes(), cfg.getMaxBreaksPerDay(), cfg.getDefaultWorkHours()),
                 settings::maxBreakMinutes, e.weeklyOffs(), zone, now);
+        if (!r.present() && e.createdAt() != null && date.isBefore(LocalDate.ofInstant(e.createdAt(), zone))) {
+            // employee did not exist yet: no attendance expected
+            return new AttendanceCalculator.DayResult(r.date(), false, null, null, r.sessions(), 0, r.breaks(), 0, 0, 0, 0, r.idles(), 0, 0, 0,
+                    false, false, List.of());
+        }
+        return r;
     }
 
     private static Totals totals(List<AttendanceCalculator.DayResult> days, int employees) {

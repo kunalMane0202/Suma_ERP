@@ -425,7 +425,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         u.setShift(shift);
         u.setTimezone("Asia/Kolkata");
         u.getWeeklyOffs().add((short) 7);
-        return users.save(u);
+        users.saveAndFlush(u);
+        jdbc.update("update users set created_at = now() - interval '120 days' where id = ?", u.getId());
+        return u;
     }
 
     private Client client(String code, String name, String industry, User am) {
