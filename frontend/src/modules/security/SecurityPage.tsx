@@ -1,2 +1,326 @@
-import { PageHeader } from '@/components/common';
-export default function Page() { return <PageHeader title="SecurityPage" />; }
+import { useState } from 'react';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
+import { Ban, Download, LogOut, Plus, Search, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input, NativeSelect } from '@/components/ui/input';
+import { Field } from '@/components/ui/label';
+import { Dialog } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Badge, type BadgeTone } from '@/components/ui/badge';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
+import { useApi } from '@/hooks/useApi';
+import { useAuth } from '@/contexts/AuthContext';
+import { api, download, errorMessage } from '@/services/api';
+import { CHART, tooltipStyle } from '@/utils/chart';
+import { dateTime, relative, titleCase } from '@/utils/format';
+import type { Page } from '@/types/api';
+
+interface Dashboard {
+  since: string; successfulLogins: number; failedLogins: number; unknownUserAttempts: number; unauthenticatedRequests: number; accessDenied: number;
+  blockedRequests: number; uniqueIps: number; suspiciousEvents: number; activeSessions: number; activeUsers: number; ipChanges: number;
+  repeatedFailures: { ip: string; attempts: number; lastAttempt: string }[]; trend: { bucket: string; success: number; failed: number }[];
+  failureCategories: { category: string; count: number }[]; topIps: { ip: string; events: number; failures: number; anonymous: number; last_seen: string }[];
+}
+interface LoginRow { id: string; userName?: string; usernameAttempted?: string; success: boolean; failureCategory?: string; ipAddress: string; ipVersion: number; device?: string; browser?: string; attemptCount: number; suspicious: boolean; suspiciousReasons?: string; createdAt: string; correlationId?: string }
+interface AnonRow { id: string; ipAddress: string; ipVersion: number; httpMethod: string; endpoint: string; category: string; statusCode: number; username?: string; userAgent?: string; createdAt: string; correlationId?: string }
+interface IpRow { id: string; ipAddress: string; ipVersion: number; userId?: string; activityType: string; details?: string; createdAt: string }
+interface SessionRow { id: string; userId: string; userName?: string; employeeCode?: string; role?: string; status: string; ipAddress?: string; lastIp?: string; ipChanged: boolean; device?: string; browser?: string; createdAt: string; lastSeenAt: string; expiresAt: string; endedReason?: string }
+interface Rule { id: string; cidr: string; ruleType: 'ALLOW' | 'DENY'; description?: string; active: boolean; expiresAt?: string; createdAt: string }
+
+const catTone: Record<string, BadgeTone> = { UNKNOWN_USER: 'violet', INVALID_CREDENTIALS: 'amber', ACCOUNT_LOCKED: 'red', ACCOUNT_DISABLED: 'neutral', BLOCKED_IP: 'red', RATE_LIMITED: 'red',
+  MISSING_AUTH: 'neutral', INVALID_TOKEN: 'amber', EXPIRED_SESSION: 'neutral', ACCESS_DENIED: 'red', REVOKED_SESSION: 'amber' };
+
+export default function SecurityPage() {
+  return (
+    <>
+      <PageHeader title="Login security & IP activity" description="Successful, failed, unknown-user and unauthenticated access with source IP addresses. Times are stored in UTC and shown in your local time. Approximate IP location is not proof of physical location." />
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="logins">Sign-ins</TabsTrigger><TabsTrigger value="anonymous">Unauthenticated</TabsTrigger>
+          <TabsTrigger value="ip">IP activity</TabsTrigger><TabsTrigger value="sessions">Active sessions</TabsTrigger><TabsTrigger value="rules">IP rules</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview"><Overview /></TabsContent>
+        <TabsContent value="logins"><Logins /></TabsContent>
+        <TabsContent value="anonymous"><Anonymous /></TabsContent>
+        <TabsContent value="ip"><IpActivity /></TabsContent>
+        <TabsContent value="sessions"><Sessions /></TabsContent>
+        <TabsContent value="rules"><Rules /></TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+function Overview() {
+  const [hours, setHours] = useState(24);
+  const { data: d, error, reload } = useApi<Dashboard>('/security/dashboard', { hours }, { interval: 60_000 });
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+  if (!d) return <TableSkeleton />;
+  return (
+    <div className="space-y-4">
+      <NativeSelect aria-label="Period" className="w-40" value={hours} onChange={(e) => setHours(Number(e.target.value))}>
+        <option value={24}>Last 24 hours</option><option value={168}>Last 7 days</option><option value={720}>Last 30 days</option>
+      </NativeSelect>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+        <Stat index={0} label="Successful sign-ins" value={d.successfulLogins} tone="ok" />
+        <Stat index={1} label="Failed sign-ins" value={d.failedLogins} tone={d.failedLogins ? 'warn' : 'default'} />
+        <Stat index={2} label="Unknown usernames" value={d.unknownUserAttempts} tone={d.unknownUserAttempts ? 'idle' : 'default'} />
+        <Stat index={3} label="Unauthenticated requests" value={d.unauthenticatedRequests} />
+        <Stat index={4} label="Access denied" value={d.accessDenied} tone={d.accessDenied ? 'breach' : 'default'} />
+        <Stat index={5} label="Blocked by IP rule" value={d.blockedRequests} />
+        <Stat index={6} label="Unique IP addresses" value={d.uniqueIps} />
+        <Stat index={7} label="Suspicious events" value={d.suspiciousEvents} tone={d.suspiciousEvents ? 'breach' : 'default'} />
+        <Stat index={8} label="Active sessions" value={d.activeSessions} hint={`${d.activeUsers} users`} tone="primary" />
+        <Stat index={9} label="IP changes" value={d.ipChanges} hint="Informational, never blocks" />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader><div><CardTitle>Sign-in attempts</CardTitle><CardDescription>Successful and failed over time</CardDescription></div></CardHeader>
+          <CardContent className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={d.trend.map((t) => ({ ...t, label: new Date(t.bucket).toLocaleString(undefined, hours <= 48 ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric' }) }))} margin={{ left: -20, right: 8 }}>
+                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} minTickGap={20} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
+                <RTooltip {...tooltipStyle} />
+                <Area type="monotone" dataKey="success" name="Successful" stroke={CHART.ok} fill={CHART.ok} fillOpacity={0.12} strokeWidth={2} />
+                <Area type="monotone" dataKey="failed" name="Failed" stroke={CHART.breach} fill={CHART.breach} fillOpacity={0.1} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><div><CardTitle>Repeated failures by IP</CardTitle><CardDescription>3 or more failed attempts in the period</CardDescription></div></CardHeader>
+          <CardContent>
+            {d.repeatedFailures.length === 0 ? <p className="text-sm text-muted-foreground">No repeated failures.</p> : (
+              <ul className="space-y-2">{d.repeatedFailures.map((r) => (
+                <li key={r.ip} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"><span className="font-mono text-xs">{r.ip}</span><span className="text-right"><b className="num text-breach">{r.attempts}</b> <span className="text-xs text-muted-foreground">· {relative(r.lastAttempt)}</span></span></li>
+              ))}</ul>
+            )}
+            <p className="mt-4 text-sm font-medium">Failure reasons</p>
+            <ul className="mt-2 space-y-1">{d.failureCategories.map((c) => <li key={c.category} className="flex justify-between text-sm"><Badge tone={catTone[c.category]}>{titleCase(c.category)}</Badge><span className="num">{c.count}</span></li>)}</ul>
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader><div><CardTitle>Most active IP addresses</CardTitle></div></CardHeader>
+        <CardContent className="px-0">
+          <Table>
+            <THead><TR><TH>IP address</TH><TH className="text-right">Events</TH><TH className="text-right">Failed sign-ins</TH><TH className="text-right">Unauthenticated</TH><TH>Last seen</TH></TR></THead>
+            <TBody>{d.topIps.map((r) => <TR key={r.ip}><TD className="font-mono text-xs">{r.ip}</TD><TD className="num text-right">{r.events}</TD><TD className="num text-right">{r.failures}</TD><TD className="num text-right">{r.anonymous}</TD><TD className="text-xs">{relative(r.last_seen)}</TD></TR>)}</TBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function FilterBar({ f, setF, extra, exportType }: { f: Record<string, string>; setF: (f: Record<string, string>) => void; extra?: React.ReactNode; exportType?: string }) {
+  const { can } = useAuth();
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b p-3">
+      <div className="relative w-full sm:w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input className="pl-8" placeholder="IP address starts with" aria-label="Filter by IP" value={f.ip ?? ''} onChange={(e) => setF({ ...f, ip: e.target.value })} /></div>
+      {extra}
+      <Input type="datetime-local" aria-label="From" className="w-52" value={f.fromLocal ?? ''} onChange={(e) => setF({ ...f, fromLocal: e.target.value })} />
+      <Input type="datetime-local" aria-label="To" className="w-52" value={f.toLocal ?? ''} onChange={(e) => setF({ ...f, toLocal: e.target.value })} />
+      <div className="flex-1" />
+      {exportType && can('REPORT_EXPORT') && <Button size="sm" variant="outline" onClick={() => download('/security/reports/export', { type: exportType, ...toParams(f) }).catch((e) => toast.error(errorMessage(e)))}><Download /> Export CSV</Button>}
+    </div>
+  );
+}
+function toParams(f: Record<string, string>) {
+  const p: Record<string, string> = {};
+  if (f.ip) p.ip = f.ip;
+  if (f.username) p.username = f.username;
+  if (f.category) p.category = f.category;
+  if (f.type) p.type = f.type;
+  if (f.success) p.success = f.success;
+  if (f.fromLocal) p.from = new Date(f.fromLocal).toISOString();
+  if (f.toLocal) p.to = new Date(f.toLocal).toISOString();
+  return p;
+}
+
+function Logins() {
+  const [f, setF] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const [mode, setMode] = useState<'all' | 'failed' | 'suspicious'>('all');
+  const url = mode === 'failed' ? '/security/failed-logins' : mode === 'suspicious' ? '/security/suspicious-activity' : '/security/login-activity';
+  const { data, error, loading, reload } = useApi<Page<LoginRow>>(url, { ...toParams(f), page, size: 50 });
+  return (
+    <Card>
+      <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType={mode === 'failed' ? 'failed' : 'logins'} extra={<>
+        <Input className="w-44" placeholder="Username" aria-label="Filter by username" value={f.username ?? ''} onChange={(e) => setF({ ...f, username: e.target.value })} />
+        <NativeSelect aria-label="Result" className="w-40" value={mode} onChange={(e) => { setPage(0); setMode(e.target.value as typeof mode); }}>
+          <option value="all">All attempts</option><option value="failed">Failed only</option><option value="suspicious">Suspicious only</option>
+        </NativeSelect></>} />
+      {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
+      {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No sign-in attempts match" /> : (
+        <>
+          <Table>
+            <THead><TR><TH>When</TH><TH>User / attempted</TH><TH>Result</TH><TH>IP address</TH><TH>Device</TH><TH>Indicators</TH></TR></THead>
+            <TBody>{data.content.map((l) => (
+              <TR key={l.id}>
+                <TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD>
+                <TD>{l.userName ?? <span className="text-muted-foreground">unknown</span>}<p className="text-xs text-muted-foreground">{l.usernameAttempted}</p></TD>
+                <TD>{l.success ? <Badge tone="green">Success</Badge> : <Badge tone={catTone[l.failureCategory ?? ''] ?? 'red'}>{titleCase(l.failureCategory)}</Badge>}{!l.success && l.attemptCount > 1 && <p className="mt-0.5 text-xs text-muted-foreground">attempt {l.attemptCount}</p>}</TD>
+                <TD className="font-mono text-xs">{l.ipAddress}<span className="ml-1 text-muted-foreground">v{l.ipVersion}</span></TD>
+                <TD className="text-xs">{l.browser} · {l.device}</TD>
+                <TD>{l.suspicious && <Badge tone="red">Suspicious</Badge>}{l.suspiciousReasons && <p className="mt-0.5 text-xs text-muted-foreground">{l.suspiciousReasons.split(',').map(titleCase).join(', ')}</p>}</TD>
+              </TR>
+            ))}</TBody>
+          </Table>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      ))}
+    </Card>
+  );
+}
+
+function Anonymous() {
+  const [f, setF] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const { data, error, loading, reload } = useApi<Page<AnonRow>>('/security/anonymous-access', { ...toParams(f), page, size: 50 });
+  return (
+    <Card>
+      <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType="anonymous" extra={
+        <NativeSelect aria-label="Category" className="w-48" value={f.category ?? ''} onChange={(e) => setF({ ...f, category: e.target.value })}>
+          <option value="">All categories</option>{['MISSING_AUTH', 'INVALID_TOKEN', 'EXPIRED_SESSION', 'REVOKED_SESSION', 'ACCESS_DENIED', 'BLOCKED_IP'].map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
+        </NativeSelect>} />
+      {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
+      {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No unauthenticated requests recorded" /> : (
+        <>
+          <Table>
+            <THead><TR><TH>When</TH><TH>Category</TH><TH>Request</TH><TH>IP address</TH><TH>User agent</TH><TH>Correlation ID</TH></TR></THead>
+            <TBody>{data.content.map((l) => (
+              <TR key={l.id}>
+                <TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD>
+                <TD><Badge tone={catTone[l.category] ?? 'neutral'}>{titleCase(l.category)}</Badge>{l.username && <p className="mt-0.5 text-xs text-muted-foreground">{l.username}</p>}</TD>
+                <TD className="font-mono text-xs">{l.httpMethod} {l.endpoint} <span className="text-muted-foreground">→ {l.statusCode}</span></TD>
+                <TD className="font-mono text-xs">{l.ipAddress}</TD>
+                <TD className="max-w-[14rem] truncate text-xs text-muted-foreground" title={l.userAgent}>{l.userAgent}</TD>
+                <TD className="font-mono text-[11px] text-muted-foreground">{l.correlationId?.slice(0, 8)}</TD>
+              </TR>
+            ))}</TBody>
+          </Table>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      ))}
+    </Card>
+  );
+}
+
+function IpActivity() {
+  const [f, setF] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const { data, error, loading, reload } = useApi<Page<IpRow>>('/security/ip-activity', { ...toParams(f), page, size: 50 });
+  return (
+    <Card>
+      <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType="ip" extra={
+        <NativeSelect aria-label="Activity" className="w-48" value={f.type ?? ''} onChange={(e) => setF({ ...f, type: e.target.value })}>
+          <option value="">All activity</option>{['LOGIN_SUCCESS', 'LOGIN_FAILURE', 'UNKNOWN_USER', 'ANONYMOUS_ACCESS', 'ACCESS_DENIED', 'IP_CHANGE', 'BLOCKED', 'SUSPICIOUS'].map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
+        </NativeSelect>} />
+      {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
+      {loading && !data ? <TableSkeleton /> : data && (
+        <>
+          <Table>
+            <THead><TR><TH>When</TH><TH>IP address</TH><TH>Activity</TH><TH>Details</TH></TR></THead>
+            <TBody>{data.content.map((l) => (
+              <TR key={l.id}><TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD><TD className="font-mono text-xs">{l.ipAddress} <span className="text-muted-foreground">v{l.ipVersion}</span></TD>
+                <TD><Badge tone={l.activityType === 'LOGIN_SUCCESS' ? 'green' : l.activityType === 'IP_CHANGE' ? 'blue' : l.activityType === 'SUSPICIOUS' || l.activityType === 'BLOCKED' ? 'red' : 'amber'}>{titleCase(l.activityType)}</Badge></TD>
+                <TD className="text-xs text-muted-foreground">{l.details}</TD></TR>
+            ))}</TBody>
+          </Table>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+function Sessions() {
+  const { user } = useAuth();
+  const [status, setStatus] = useState('ACTIVE');
+  const { data, error, loading, reload } = useApi<Page<SessionRow>>('/security/active-sessions', { status, size: 100 }, { interval: 60_000 });
+  const [target, setTarget] = useState<SessionRow | null>(null);
+  const [reason, setReason] = useState('');
+  const terminate = async () => {
+    try {
+      await api.post(`/security/sessions/${target!.id}/terminate`, { reason: reason || undefined });
+      toast.success(`Session for ${target!.userName} terminated`);
+      setTarget(null); setReason(''); reload();
+    } catch (e) { toast.error(errorMessage(e)); }
+  };
+  return (
+    <Card>
+      <div className="flex items-center gap-2 border-b p-3">
+        <NativeSelect aria-label="Session status" className="w-44" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="ACTIVE">Active</option><option value="TERMINATED">Terminated</option><option value="EXPIRED">Expired</option><option value="LOGGED_OUT">Signed out</option>
+        </NativeSelect>
+      </div>
+      {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
+      {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No sessions" /> : (
+        <Table>
+          <THead><TR><TH>User</TH><TH>Signed in</TH><TH>Last seen</TH><TH>IP address</TH><TH>Device</TH><TH /></TR></THead>
+          <TBody>{data.content.map((s) => (
+            <TR key={s.id}>
+              <TD><p className="font-medium">{s.userName}{s.id === user?.sessionId && <Badge tone="blue" className="ml-2">This session</Badge>}</p><p className="text-xs text-muted-foreground">{s.employeeCode} · {s.role}</p></TD>
+              <TD className="num text-xs">{dateTime(s.createdAt)}</TD><TD className="text-xs">{relative(s.lastSeenAt)}</TD>
+              <TD className="font-mono text-xs">{s.ipAddress}{s.ipChanged && <span className="block text-warn">now {s.lastIp}</span>}</TD>
+              <TD className="text-xs">{s.browser} · {s.device}{s.endedReason && <span className="block text-muted-foreground">{s.endedReason}</span>}</TD>
+              <TD className="text-right">{s.status === 'ACTIVE' && s.id !== user?.sessionId && <Can permission="SECURITY_MANAGE"><Button size="sm" variant="outline" onClick={() => setTarget(s)}><LogOut /> Terminate</Button></Can>}</TD>
+            </TR>
+          ))}</TBody>
+        </Table>
+      ))}
+      <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)} title={`Terminate session for ${target?.userName ?? ''}?`}
+        description="The person is signed out immediately, their refresh token is revoked and their attendance session is closed as terminated by an administrator."
+        footer={<><Button variant="outline" onClick={() => setTarget(null)}>Cancel</Button><Button variant="destructive" onClick={terminate}>Terminate session</Button></>}>
+        <Field label="Reason (recorded in the audit trail)" htmlFor="term-reason"><Input id="term-reason" value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+      </Dialog>
+    </Card>
+  );
+}
+
+function Rules() {
+  const { data, reload } = useApi<Rule[]>('/security/ip-rules');
+  const [form, setForm] = useState<{ cidr: string; ruleType: 'ALLOW' | 'DENY'; description: string } | null>(null);
+  const save = async () => {
+    try { await api.post('/security/ip-rules', form); toast.success('IP rule added'); setForm(null); reload(); } catch (e) { toast.error(errorMessage(e)); }
+  };
+  const allowCount = (data ?? []).filter((r) => r.ruleType === 'ALLOW' && r.active).length;
+  return (
+    <Card>
+      <CardHeader>
+        <div><CardTitle>IP allow and deny rules</CardTitle><CardDescription>Deny rules block matching addresses. When any allow rule is active, only allow-listed addresses can use SUMA. Changing IP addresses alone never blocks anyone.</CardDescription></div>
+        <Can permission="SECURITY_MANAGE"><Button size="sm" onClick={() => setForm({ cidr: '', ruleType: 'DENY', description: '' })}><Plus /> Add rule</Button></Can>
+      </CardHeader>
+      <CardContent className="px-0">
+        {allowCount > 0 && <p className="mx-5 mb-3 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">Allow-list mode is on: {allowCount} allow rule(s) active.</p>}
+        {(data ?? []).length === 0 ? <EmptyState icon={<Ban />} title="No IP rules" description="All addresses can reach the sign-in page." /> : (
+          <Table>
+            <THead><TR><TH>Address or range</TH><TH>Type</TH><TH>Description</TH><TH>Added</TH><TH>Active</TH><TH /></TR></THead>
+            <TBody>{data!.map((r) => (
+              <TR key={r.id}><TD className="font-mono text-xs">{r.cidr}</TD><TD><Badge tone={r.ruleType === 'DENY' ? 'red' : 'green'}>{r.ruleType === 'DENY' ? 'Deny' : 'Allow'}</Badge></TD><TD className="text-sm">{r.description}</TD>
+                <TD className="text-xs">{dateTime(r.createdAt)}</TD>
+                <TD><Can permission="SECURITY_MANAGE" fallback={r.active ? 'Yes' : 'No'}><Switch checked={r.active} aria-label="Rule active" onCheckedChange={async (v) => { await api.patch(`/security/ip-rules/${r.id}`, { active: v }); reload(); }} /></Can></TD>
+                <TD className="text-right"><Can permission="SECURITY_MANAGE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/security/ip-rules/${r.id}`); reload(); }}><Trash2 /></Button></Can></TD></TR>
+            ))}</TBody>
+          </Table>
+        )}
+      </CardContent>
+      <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)} title="Add IP rule" description="IPv4 or IPv6 address or CIDR range, e.g. 203.0.113.0/24 or 2001:db8::/32."
+        footer={<><Button variant="outline" onClick={() => setForm(null)}>Cancel</Button><Button disabled={!form?.cidr} onClick={save}>Add rule</Button></>}>
+        {form && <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Address or CIDR" htmlFor="r-cidr"><Input id="r-cidr" value={form.cidr} onChange={(e) => setForm({ ...form, cidr: e.target.value })} /></Field>
+          <Field label="Type" htmlFor="r-type"><NativeSelect id="r-type" value={form.ruleType} onChange={(e) => setForm({ ...form, ruleType: e.target.value as 'ALLOW' | 'DENY' })}><option value="DENY">Deny</option><option value="ALLOW">Allow</option></NativeSelect></Field>
+          <Field label="Description" htmlFor="r-desc" className="sm:col-span-2"><Input id="r-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+        </div>}
+      </Dialog>
+    </Card>
+  );
+}

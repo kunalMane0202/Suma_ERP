@@ -41,7 +41,7 @@ export function Stat({ label, value, hint, tone = 'default', icon, format, index
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.035, duration: 0.35, ease: 'easeOut' }}
-      className="glass rounded-lg px-4 py-3.5">
+      className="glass min-w-0 rounded-lg px-4 py-3.5">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="truncate">{label}</span>
         {icon && <span className="text-muted-foreground/70 [&_svg]:size-4">{icon}</span>}
