@@ -31,7 +31,8 @@ public final class OutboundUrlGuard {
         } catch (UnknownHostException e) {
             throw new IllegalArgumentException("Host " + uri.getHost() + " could not be resolved");
         }
-        boolean allowLoopback = "true".equalsIgnoreCase(System.getenv("SUMA_OUTBOUND_ALLOW_LOOPBACK"));
+        boolean allowLoopback = "true".equalsIgnoreCase(System.getenv("SUMA_OUTBOUND_ALLOW_LOOPBACK"))
+                || Boolean.getBoolean("suma.outbound.allowLoopback"); // system property: tests with a local stub server
         for (InetAddress a : addresses) {
             if (a.isLinkLocalAddress() || a.isAnyLocalAddress() || a.isMulticastAddress() || (a.isLoopbackAddress() && !allowLoopback)) {
                 throw new IllegalArgumentException("Calls to " + uri.getHost() + " are not allowed (local, link-local or metadata address)");

@@ -187,7 +187,8 @@ public class IntegrationService {
         if (ticketRepo.existsByExternalSystemAndExternalId(i.getConnectorType(), externalId)) return "DUPLICATE";
         try {
             return tx.execute(s -> {
-                String title = Optional.ofNullable(FieldMapper.string(rec, (String) mapping.get("title"))).orElse("(no subject) " + externalId);
+                String title = Optional.ofNullable(FieldMapper.string(rec, (String) mapping.get("title"))).map(String::trim).filter(x -> !x.isEmpty())
+                        .orElse("(no subject) " + externalId);
                 String priority = mapPriority(FieldMapper.string(rec, (String) mapping.get("priority")), mapping);
                 String reporterEmail = FieldMapper.string(rec, (String) mapping.get("reporterEmail"));
                 if (reporterEmail != null && !reporterEmail.matches("^[^@\\s]+@[^@\\s]+$")) reporterEmail = null;
