@@ -208,9 +208,7 @@ public class SecurityController {
     }
 
     private static String safe(String v) {
-        if (v == null || v.isEmpty()) return v;
-        char c = v.charAt(0);
-        return c == '=' || c == '+' || c == '@' || c == '-' ? "'" + v : v;
+        return com.suma.common.SpreadsheetSafety.cell(v);
     }
 
     private static String s(String v) {

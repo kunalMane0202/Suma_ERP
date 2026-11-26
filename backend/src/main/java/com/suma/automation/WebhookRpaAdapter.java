@@ -28,8 +28,12 @@ public class WebhookRpaAdapter implements RpaAdapter {
     @Override
     public Result trigger(String endpoint, String job, Map<String, Object> payload) {
         try {
-            URI uri = URI.create(endpoint);
-            if (!"https".equals(uri.getScheme()) && !"http".equals(uri.getScheme())) return new Result(false, 0, "Only http(s) endpoints are supported");
+            URI uri;
+            try {
+                uri = com.suma.common.OutboundUrlGuard.check(endpoint);
+            } catch (IllegalArgumentException e) {
+                return new Result(false, 0, e.getMessage());
+            }
             Map<String, Object> body = new HashMap<>(payload);
             body.put("job", job);
             HttpRequest req = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).header("Content-Type", "application/json")

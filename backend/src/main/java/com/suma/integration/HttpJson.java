@@ -20,7 +20,7 @@ final class HttpJson {
     private HttpJson() {}
 
     static Map<String, Object> get(String url, Integration i, Map<String, String> creds, ObjectMapper mapper) throws Exception {
-        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30)).header("Accept", "application/json");
+        HttpRequest.Builder b = HttpRequest.newBuilder(com.suma.common.OutboundUrlGuard.check(url)).timeout(Duration.ofSeconds(30)).header("Accept", "application/json");
         switch (i.getAuthType()) {
             case "BASIC" -> b.header("Authorization", "Basic " + Base64.getEncoder().encodeToString(
                     (creds.getOrDefault("username", "") + ":" + creds.getOrDefault("password", "")).getBytes(StandardCharsets.UTF_8)));

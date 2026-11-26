@@ -162,9 +162,7 @@ public class AttendanceExportService {
 
     /** Neutralises spreadsheet formula injection. */
     static String csvSafe(String v) {
-        if (v == null || v.isEmpty()) return v;
-        char c = v.charAt(0);
-        return c == '=' || c == '+' || c == '@' || (c == '-' && v.length() > 1 && !Character.isDigit(v.charAt(1))) ? "'" + v : v;
+        return com.suma.common.SpreadsheetSafety.cell(v);
     }
 
     private static byte[] xlsx(List<Sheet> sheets) {

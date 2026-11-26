@@ -77,7 +77,7 @@ public class ReportController {
                 p.printRecord(r.columns().stream().map(c -> {
                     Object v = row.get(c);
                     String s = v == null ? "" : v.toString();
-                    return !s.isEmpty() && "=+@".indexOf(s.charAt(0)) >= 0 ? "'" + s : s;
+                    return v instanceof Number ? s : com.suma.common.SpreadsheetSafety.cell(s);
                 }).toList());
             }
             p.flush();
