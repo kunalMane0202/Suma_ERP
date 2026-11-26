@@ -50,5 +50,6 @@ and passed in this environment (see OVERNIGHT_DEVELOPMENT_REPORT.md for the exac
 | Q-01 | QA | Backend unit + integration tests | — | P0 | COMPLETED | 50/50 ✔ | — |
 | Q-02 | QA | Frontend Vitest | — | P1 | COMPLETED | 12/12 ✔ | — |
 | Q-03 | QA | Playwright E2E | — | P0 | COMPLETED | 14/14 ✔ | — |
-| Q-04 | QA | Security review of full diff | — | P1 | NOT STARTED | — | recommended next |
+| Q-04 | QA | Security review | — | P1 | IN PROGRESS | unit ✔ (SecurityHelpersTest) backend 54/54 ✔ | focused review of high-risk areas done 2026-11-26 (XSS sinks, token storage, outbound URLs, uploads, CSV exports, open endpoints, default secrets); fixed CSV formula escaping and added outbound URL guard. A line-by-line review of all 200+ backend files is still open |
+| Q-05 | QA | Skill audits: Web Interface Guidelines, React best practices, UI/UX Pro Max (axe-core), dataviz | U-03 | P1 | COMPLETED | axe 0 violations on 18 pages light + dark ✔ E2E 14/14 ✔ Vitest 12/12 ✔ | URL does not yet reflect list filters/tabs (guideline: deep-link state) |
 | X-01 | Docs | README, plan, schema, API, roles, skills, progress, deployment, handover | — | P0 | COMPLETED | — | — |

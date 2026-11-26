@@ -53,6 +53,18 @@ Sign-in · Dashboard · Tickets · Ticket detail · My attendance · Team attend
 
 UI (redesigned 2026-11-26, "Bento + soft depth"): lavender canvas, white bento tiles whose size reflects importance, indigo→violet gradient used for the hero tile, active navigation and primary actions; Sora headings/numerals with DM Sans body; floating collapsible sidebar; Ctrl+K command palette for pages and tickets; shift ring on My attendance; avatar status cards on Team attendance; Pinterest-style masonry knowledge base; sign-in page with floating preview tiles. Phase 2 (same day) gave every remaining page its own bento layout: hero banners with headline numbers, pill filter bars, card/table toggles on list pages, chat-style ticket conversations with an SLA gauge, people and team cards, a workload leaderboard, 24-hour shift tracks, SLA policy cards, WHEN→IF→THEN automation flow cards, connector cards, a day-grouped audit timeline, grouped notifications and a profile hero. Re-verified after phase 2: typecheck, Vitest 12/12, production build, E2E 14/14 and no horizontal overflow at 390 px on 17 pages. Earlier baseline: light mode by default (operating-system dark preference ignored), optional dark mode saved to the user profile, IBM Plex Sans, navy navigation, blue actions, translucent surfaces, Motion transitions and counters, and a shift-timeline strip showing sessions, breaks (over-limit in red) and inactivity separately. Responsive to 390 px; keyboard focus visible; reduced motion respected. Employees see an explicit statement of what is recorded.
 
+## Skill audits (2026-11-26)
+
+Run after the redesign with the installed skills; each finding was fixed and re-verified.
+
+| Skill | Findings fixed |
+|---|---|
+| web-design-guidelines | Clickable cards were divs (now real links with Cmd/Ctrl+click and keyboard); no skip link; five deletes saved without confirmation; `transition-all`; logo images without size; missing theme-color, overscroll and touch settings |
+| ui-ux-pro-max (axe-core 4.10 on 18 pages, light and dark) | 242 contrast failures from two causes: muted text at 80% opacity and status colours used as text. Added text-only status shades; heading levels; labelled scroll regions; chart semantics; sign-in landmarks. Result: 0 violations in both themes |
+| vercel-react-best-practices | Sign-in page loaded eagerly with zod and react-hook-form (main chunk 400 kB to 303 kB, 127 to 99 kB gzip); duplicate in-flight lookup requests now shared |
+| dataviz (validator script) | Green/red series indistinguishable with red-green colour blindness; priority and ageing used unrelated hues for ordered data. Now validated series colours and one-hue ordinal ramps per theme; legends on every multi-series chart |
+| security review (focused) | Reports CSV export missed '-' formula prefixes and all CSV exports missed tab/CR; integration and RPA URLs could target cloud metadata and loopback. Added `SpreadsheetSafety` and `OutboundUrlGuard` with unit tests |
+
 ## Known limitations
 
 1. **Idle detection is browser-only** (activity inside the SUMA tab). System-wide idle detection needs a separately approved desktop agent; none is installed and the UI says so.
