@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
+import { AlertTriangle, Bell, Coffee, Mail, Moon, Ticket, Timer } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { IconTile, gridItem, gridParent } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -27,28 +31,57 @@ export default function NotificationsPage() {
       <PageHeader title="Notifications" description="Ticket assignments, SLA alerts, break reminders, inactivity prompts and report deliveries."
         actions={<><label className="flex items-center gap-2 text-sm"><Switch checked={unread} onCheckedChange={(v) => { setPage(0); setUnread(v); }} /> Unread only</label>
           <Button variant="outline" onClick={async () => { await api.post('/notifications/read-all'); reload(); }}>Mark all read</Button></>} />
-      <Card>
-        {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="You're all caught up" /> : (
-          <>
-            <ul className="divide-y">
-              {data.content.map((n) => (
-                <li key={n.id}>
-                  <button onClick={() => open(n)} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-accent/40">
-                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.readAt ? 'bg-transparent' : 'bg-primary'}`} aria-label={n.readAt ? undefined : 'Unread'} />
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${n.readAt ? '' : 'font-semibold'}`}>{n.title}</p>
-                      {n.message && <p className="text-sm text-muted-foreground">{n.message}</p>}
-                      <p className="mt-0.5 text-xs text-muted-foreground">{dateTime(n.createdAt)} · {titleCase(n.type)}</p>
-                    </div>
-                    {n.severity !== 'INFO' && <Badge tone={n.severity === 'CRITICAL' ? 'red' : 'amber'}>{titleCase(n.severity)}</Badge>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
-          </>
-        ))}
-      </Card>
+      {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.content.length === 0 ? <Card><EmptyState title="You're all caught up" /></Card> : (
+        <div className="space-y-4">
+          {group(data.content).map(([label, items]) => (
+            <Card key={label}>
+              <CardHeader><CardTitle>{label}</CardTitle><span className="text-xs text-muted-foreground">{items.filter((n) => !n.readAt).length} unread</span></CardHeader>
+              <CardContent>
+                <motion.ul className="space-y-1.5" variants={gridParent} initial="hidden" animate="show">
+                  {items.map((n) => {
+                    const [Icon, tone] = iconFor(n);
+                    return (
+                      <motion.li key={n.id} variants={gridItem}>
+                        <button onClick={() => open(n)} className={`flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-accent/60 ${n.readAt ? '' : 'bg-primary/5 ring-1 ring-primary/15'}`}>
+                          <IconTile icon={Icon} tone={tone} />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm ${n.readAt ? '' : 'font-semibold'}`}>{n.title}</p>
+                            {n.message && <p className="text-sm text-muted-foreground">{n.message}</p>}
+                            <p className="mt-0.5 text-xs text-muted-foreground">{dateTime(n.createdAt)} · {titleCase(n.type)}</p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            {n.severity !== 'INFO' && <Badge tone={n.severity === 'CRITICAL' ? 'red' : 'amber'}>{titleCase(n.severity)}</Badge>}
+                            {!n.readAt && <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-glow" aria-label="Unread" />}
+                          </div>
+                        </button>
+                      </motion.li>
+                    );
+                  })}
+                </motion.ul>
+              </CardContent>
+            </Card>
+          ))}
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </div>
+      ))}
     </>
   );
+}
+
+function group(items: N[]): [string, N[]][] {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const y = new Date(start.getTime() - 86400000);
+  const g: [string, N[]][] = [['Today', []], ['Yesterday', []], ['Earlier', []]];
+  for (const n of items) { const d = new Date(n.createdAt); g[d >= start ? 0 : d >= y ? 1 : 2][1].push(n); }
+  return g.filter(([, v]) => v.length);
+}
+
+function iconFor(n: N): [LucideIcon, string] {
+  if (n.severity === 'CRITICAL') return [AlertTriangle, 'coral'];
+  if (/SLA/.test(n.type)) return [Timer, 'amber'];
+  if (/BREAK/.test(n.type)) return [Coffee, 'amber'];
+  if (/IDLE|INACTIV/.test(n.type)) return [Moon, 'sky'];
+  if (/REPORT|EMAIL/.test(n.type)) return [Mail, 'mint'];
+  if (/TICKET|ASSIGN/.test(n.type)) return [Ticket, 'brand'];
+  return [Bell, 'soft'];
 }

@@ -1,4 +1,6 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { BellRing, CalendarDays, Plus, Timer, Trash2 } from 'lucide-react';
+import { CardGrid, GridCard, HeroBanner, IconTile } from '@/components/layout';
+import { PRIORITY_COLORS } from '@/utils/chart';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +10,6 @@ import { Field } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { Can, EmptyState, PageHeader, PriorityTag } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
@@ -54,42 +55,53 @@ export default function SlaPage() {
     <>
       <PageHeader title="SLA management" description="Response and resolution targets by priority and project, measured on business calendars. All calculations run on the server."
         actions={<Can permission="SLA_WRITE"><Button onClick={() => setEdit({ priority: 'MEDIUM', responseMinutes: 240, resolutionMinutes: 1440, businessHoursOnly: true, pauseOnPending: true })}><Plus /> New policy</Button></Can>} />
-      <Card>
-        <CardHeader><div><CardTitle>Policies</CardTitle><CardDescription>A project policy overrides the organisation-wide policy for the same priority</CardDescription></div></CardHeader>
-        <CardContent className="px-0">
-          {(policies.data ?? []).length === 0 ? <EmptyState title="No SLA policies" description="Tickets have no SLA clock until a policy exists for their priority." /> : (
-            <Table>
-              <THead><TR><TH>Policy</TH><TH>Scope</TH><TH>Priority</TH><TH>First response</TH><TH>Resolution</TH><TH>Clock</TH><TH>Pending</TH><TH /></TR></THead>
-              <TBody>
-                {(policies.data ?? []).map((p) => (
-                  <TR key={p.id} className={p.active ? '' : 'opacity-50'}>
-                    <TD className="font-medium">{p.name}{!p.active && <Badge className="ml-2">Inactive</Badge>}</TD><TD>{projectName(p.projectId)}</TD><TD><PriorityTag priority={p.priority} /></TD>
-                    <TD className="num">{mins(p.responseMinutes)}</TD><TD className="num">{mins(p.resolutionMinutes)}</TD>
-                    <TD className="text-xs">{p.businessHoursOnly ? 'Business hours' : '24×7'}</TD><TD className="text-xs">{p.pauseOnPending ? 'Pauses clock' : 'Keeps running'}</TD>
-                    <TD className="whitespace-nowrap text-right"><Can permission="SLA_WRITE"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button>{p.active && <Button variant="ghost" size="sm" onClick={() => deactivate(p)}>Deactivate</Button>}</Can></TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <HeroBanner icon={Timer} title="Service levels" subtitle="Targets measured on business calendars"
+        metrics={[{ label: 'Active policies', value: (policies.data ?? []).filter((p) => p.active).length }, { label: 'Calendars', value: (calendars.data ?? []).length },
+          { label: 'Holidays', value: (calendars.data ?? []).reduce((a, c) => a + c.holidays.length, 0) }, { label: 'Escalation rules', value: (escalations.data ?? []).length }]} />
+      <h2 className="mb-1 font-display text-lg font-semibold">Policies</h2>
+      <p className="mb-3 text-sm text-muted-foreground">A project policy overrides the organisation-wide policy for the same priority</p>
+      {(policies.data ?? []).length === 0 ? <Card><EmptyState title="No SLA policies" description="Tickets have no SLA clock until a policy exists for their priority." /></Card> : (
+        <CardGrid className="xl:grid-cols-4">
+          {(policies.data ?? []).map((p) => (
+            <GridCard key={p.id} className={`relative overflow-hidden ${p.active ? '' : 'opacity-50'}`}>
+              <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: PRIORITY_COLORS[p.priority] }} />
+              <div className="flex items-start justify-between gap-2"><PriorityTag priority={p.priority} />{!p.active && <Badge>Inactive</Badge>}</div>
+              <p className="mt-2 font-semibold leading-snug">{p.name}</p>
+              <p className="text-xs text-muted-foreground">{projectName(p.projectId)}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-muted/70 px-3 py-2"><p className="text-[11px] text-muted-foreground">First response</p><p className="display-num text-2xl">{mins(p.responseMinutes)}</p></div>
+                <div className="rounded-xl bg-muted/70 px-3 py-2"><p className="text-[11px] text-muted-foreground">Resolution</p><p className="display-num text-2xl">{mins(p.resolutionMinutes)}</p></div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+                <span className="rounded-full bg-sky/15 px-2.5 py-1 font-semibold text-sky">{p.businessHoursOnly ? 'Business hours' : '24×7'}</span>
+                <span className="rounded-full bg-idle/15 px-2.5 py-1 font-semibold text-idle">{p.pauseOnPending ? 'Pauses clock' : 'Keeps running'}</span>
+              </div>
+              <div className="mt-auto flex justify-end gap-1 pt-3"><Can permission="SLA_WRITE"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button>{p.active && <Button variant="ghost" size="sm" onClick={() => deactivate(p)}>Deactivate</Button>}</Can></div>
+            </GridCard>
+          ))}
+        </CardGrid>
+      )}
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         {(calendars.data ?? []).map((c) => (
           <Card key={c.id}>
-            <CardHeader><div><CardTitle>{c.name}</CardTitle><CardDescription>{c.timezone}{c.defaultCalendar ? ' · default calendar' : ''}{c.hours.length === 0 ? ' · no hours set, treated as 24×7' : ''}</CardDescription></div></CardHeader>
+            <CardHeader><div className="flex items-center gap-3"><IconTile icon={CalendarDays} tone="sky" /><div><CardTitle>{c.name}</CardTitle><CardDescription>{c.timezone}{c.defaultCalendar ? ' · default calendar' : ''}{c.hours.length === 0 ? ' · no hours set, treated as 24×7' : ''}</CardDescription></div></div></CardHeader>
             <CardContent>
+              <div className="mb-4 grid grid-cols-7 gap-1.5">
+                {DAYS.map((d, i) => { const h = c.hours.find((x) => x.dayOfWeek === i + 1); return (
+                  <div key={d} className={`rounded-xl py-2 text-center ${h ? 'bg-brand text-white shadow-glow' : 'bg-muted text-muted-foreground'}`}>
+                    <p className="text-xs font-semibold">{d}</p><p className="display-num mt-0.5 text-[10px] opacity-80">{h ? `${h.startTime.slice(0, 5)}` : 'off'}</p></div>); })}
+              </div>
               <div className="space-y-1.5">
                 {DAYS.map((d, i) => {
                   const h = c.hours.find((x) => x.dayOfWeek === i + 1);
                   return (
-                    <div key={d} className="flex items-center gap-3 text-sm">
+                    <div key={d} className="flex flex-wrap items-center gap-3 rounded-xl px-2 py-1 text-sm hover:bg-accent/50">
                       <Can permission="SLA_WRITE" fallback={<span className="w-9" />}><Switch checked={!!h} onCheckedChange={(on) => saveCalendarHours(c, i + 1, on)} aria-label={`${d} business day`} /></Can>
                       <span className="w-10">{d}</span>
-                      {h ? <><Input type="time" aria-label={`${d} start`} className="h-8 w-28" defaultValue={h.startTime.slice(0, 5)} onBlur={(e) => e.target.value !== h.startTime.slice(0, 5) && updateHours(c, i + 1, 'startTime', e.target.value)} />
+                      {h ? <><Input type="time" aria-label={`${d} start`} className="h-8 w-28 rounded-full" defaultValue={h.startTime.slice(0, 5)} onBlur={(e) => e.target.value !== h.startTime.slice(0, 5) && updateHours(c, i + 1, 'startTime', e.target.value)} />
                         <span className="text-muted-foreground">to</span>
-                        <Input type="time" aria-label={`${d} end`} className="h-8 w-28" defaultValue={h.endTime.slice(0, 5)} onBlur={(e) => e.target.value !== h.endTime.slice(0, 5) && updateHours(c, i + 1, 'endTime', e.target.value)} /></>
+                        <Input type="time" aria-label={`${d} end`} className="h-8 w-28 rounded-full" defaultValue={h.endTime.slice(0, 5)} onBlur={(e) => e.target.value !== h.endTime.slice(0, 5) && updateHours(c, i + 1, 'endTime', e.target.value)} /></>
                         : <span className="text-muted-foreground">Closed</span>}
                     </div>
                   );
@@ -98,8 +110,8 @@ export default function SlaPage() {
               <div className="mt-4 border-t pt-3">
                 <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">Holidays</p><Can permission="SLA_WRITE"><Button size="sm" variant="outline" onClick={() => setHol({ calendarId: c.id, date: '', name: '' })}><Plus /> Add holiday</Button></Can></div>
                 {c.holidays.length === 0 ? <p className="text-xs text-muted-foreground">No holidays.</p> : (
-                  <ul className="space-y-1 text-sm">{c.holidays.map((h) => <li key={h.id} className="flex items-center justify-between"><span>{date(h.holidayDate)} · {h.name}</span>
-                    <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" aria-label={`Remove ${h.name}`} onClick={async () => { await api.delete(`/sla/holidays/${h.id}`); calendars.reload(); }}><Trash2 /></Button></Can></li>)}</ul>
+                  <ul className="flex flex-wrap gap-2 text-sm">{c.holidays.map((h) => <li key={h.id} className="flex items-center gap-1 rounded-full bg-warn/10 py-0.5 pl-3 pr-1"><span><span className="font-semibold">{h.name}</span> <span className="text-xs text-muted-foreground">{date(h.holidayDate)}</span></span>
+                    <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Remove ${h.name}`} onClick={async () => { await api.delete(`/sla/holidays/${h.id}`); calendars.reload(); }}><Trash2 /></Button></Can></li>)}</ul>
                 )}
               </div>
             </CardContent>
@@ -110,15 +122,22 @@ export default function SlaPage() {
       <Card className="mt-4">
         <CardHeader><div><CardTitle>Escalation rules</CardTitle><CardDescription>Automatic escalation on breach or when a share of the resolution time has elapsed</CardDescription></div>
           <Can permission="SLA_WRITE"><Button size="sm" variant="outline" onClick={() => setEsc({ triggerType: 'RESOLUTION_PERCENT', thresholdPercent: 75, escalationLevel: 1, notifyRole: 'TEAM_LEADER', active: true })}><Plus /> Add rule</Button></Can></CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <THead><TR><TH>Trigger</TH><TH>Scope</TH><TH>Priority</TH><TH>Level</TH><TH>Notify</TH><TH /></TR></THead>
-            <TBody>{(escalations.data ?? []).map((e) => (
-              <TR key={e.id}><TD>{titleCase(e.triggerType)}{e.thresholdPercent ? ` at ${e.thresholdPercent}%` : ''}</TD><TD>{projectName(e.projectId)}</TD><TD>{e.priority ? titleCase(e.priority) : 'Any'}</TD>
-                <TD>L{e.escalationLevel}</TD><TD>{e.notifyRole ? titleCase(e.notifyRole) : '—'}</TD>
-                <TD className="text-right"><Can permission="SLA_WRITE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/sla/escalation-rules/${e.id}`); escalations.reload(); }}><Trash2 /></Button></Can></TD></TR>
-            ))}</TBody>
-          </Table>
+        <CardContent>
+          {(escalations.data ?? []).length === 0 ? <EmptyState title="No escalation rules" /> : (
+            <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {[...(escalations.data ?? [])].sort((x, y) => x.escalationLevel - y.escalationLevel).map((e) => (
+                <li key={e.id} className="relative flex gap-3 rounded-2xl bg-muted/50 p-4">
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-display text-sm font-bold text-white ${e.triggerType === 'RESOLUTION_PERCENT' ? 'bg-gradient-to-br from-[#F5A524] to-[#F0506E]' : 'bg-gradient-to-br from-[#F0506E] to-[#A78BFA]'}`}>L{e.escalationLevel}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{titleCase(e.triggerType)}{e.thresholdPercent ? ` at ${e.thresholdPercent}%` : ''}</p>
+                    <p className="text-xs text-muted-foreground">{projectName(e.projectId)} · {e.priority ? titleCase(e.priority) : 'Any priority'}</p>
+                    <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-0.5 text-xs font-medium shadow-glass"><BellRing className="h-3 w-3" /> {e.notifyRole ? titleCase(e.notifyRole) : 'No notification'}</p>
+                  </div>
+                  <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/sla/escalation-rules/${e.id}`); escalations.reload(); }}><Trash2 /></Button></Can>
+                </li>
+              ))}
+            </ol>
+          )}
         </CardContent>
       </Card>
 

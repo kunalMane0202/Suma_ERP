@@ -1,4 +1,8 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Filter, Play, Plus, ShieldQuestion, Trash2, XCircle, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { CardGrid, FeedItem, GridCard, IconTile } from '@/components/layout';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +13,6 @@ import { Field } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { EmptyState, PageHeader, Pagination } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
@@ -58,57 +61,69 @@ export default function AutomationPage() {
       <Tabs defaultValue="rules">
         <TabsList><TabsTrigger value="rules">Rules</TabsTrigger><TabsTrigger value="runs">Execution log</TabsTrigger><TabsTrigger value="approvals">Approvals</TabsTrigger><TabsTrigger value="scheduled">Scheduled automations</TabsTrigger></TabsList>
         <TabsContent value="rules">
-          <Card><CardContent className="px-0 pt-2">
-            {(rules.data ?? []).length === 0 ? <EmptyState title="No automation rules" /> : (
-              <Table>
-                <THead><TR><TH>Order</TH><TH>Rule</TH><TH>When</TH><TH>If</TH><TH>Then</TH><TH>Active</TH><TH /></TR></THead>
-                <TBody>{rules.data!.map((r) => {
-                  const conds: Cond[] = JSON.parse(r.conditions); const acts: Act[] = JSON.parse(r.actions);
-                  return (
-                    <TR key={r.id}>
-                      <TD className="num">{r.priority}</TD>
-                      <TD><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground">{r.description}</p></TD>
-                      <TD><Badge tone="blue">{titleCase(r.triggerEvent)}</Badge></TD>
-                      <TD className="text-xs">{conds.length === 0 ? 'Always' : conds.map((c) => `${c.field} ${c.op} ${Array.isArray(c.value) ? c.value.join('|') : c.value ?? ''}`).join(' and ')}</TD>
-                      <TD className="text-xs">{acts.map((a) => titleCase(a.type)).join(', ')}{r.stopProcessing ? ' · then stop' : ''}</TD>
-                      <TD><Switch checked={r.active} aria-label="Rule active" onCheckedChange={async (v) => { await api.put(`/automation/rules/${r.id}`, { ...r, conditions: conds, actions: acts, active: v }); rules.reload(); }} /></TD>
-                      <TD className="whitespace-nowrap text-right"><Button variant="ghost" size="sm" onClick={() => open(r)}>Edit</Button>
-                        <Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { if (window.confirm('Delete this rule?')) { await api.delete(`/automation/rules/${r.id}`); rules.reload(); } }}><Trash2 /></Button></TD>
-                    </TR>
-                  );
-                })}</TBody>
-              </Table>
-            )}
-          </CardContent></Card>
+          {(rules.data ?? []).length === 0 ? <Card><EmptyState title="No automation rules" /></Card> : (
+            <CardGrid className="lg:grid-cols-2 xl:grid-cols-2">
+              {rules.data!.map((r) => {
+                const conds: Cond[] = JSON.parse(r.conditions); const acts: Act[] = JSON.parse(r.actions);
+                return (
+                  <GridCard key={r.id} className={r.active ? '' : 'opacity-60'}>
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted font-display text-xs font-bold text-muted-foreground" title="Order">{r.priority}</span>
+                      <div className="min-w-0 flex-1"><p className="font-semibold">{r.name}</p>{r.description && <p className="text-xs text-muted-foreground">{r.description}</p>}</div>
+                      <Switch checked={r.active} aria-label="Rule active" onCheckedChange={async (v) => { await api.put(`/automation/rules/${r.id}`, { ...r, conditions: conds, actions: acts, active: v }); rules.reload(); }} />
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <FlowStep label="When" icon={Zap} tone="bg-brand text-white shadow-glow"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{titleCase(r.triggerEvent)}</span></FlowStep>
+                      <FlowStep label="If" icon={Filter} tone="bg-sky/15 text-sky">
+                        {conds.length === 0 ? <span className="text-xs text-muted-foreground">Always</span> : conds.map((c, i) => <span key={i} className="rounded-full bg-sky/10 px-2.5 py-1 font-mono text-[11px]">{c.field} {c.op} {Array.isArray(c.value) ? c.value.join('|') : c.value ?? ''}</span>)}
+                      </FlowStep>
+                      <FlowStep label="Then" icon={Play} tone="bg-ok/15 text-ok" last>
+                        {acts.map((a, i) => <span key={i} className="rounded-full bg-ok/10 px-2.5 py-1 text-xs font-semibold text-ok">{titleCase(a.type)}</span>)}
+                        {r.stopProcessing && <span className="rounded-full bg-muted px-2.5 py-1 text-xs">then stop</span>}
+                      </FlowStep>
+                    </div>
+                    <div className="mt-auto flex justify-end gap-1 pt-3"><Button variant="ghost" size="sm" onClick={() => open(r)}>Edit</Button>
+                      <Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { if (window.confirm('Delete this rule?')) { await api.delete(`/automation/rules/${r.id}`); rules.reload(); } }}><Trash2 /></Button></div>
+                  </GridCard>
+                );
+              })}
+            </CardGrid>
+          )}
         </TabsContent>
         <TabsContent value="runs">
-          <Card><CardContent className="px-0 pt-2">
-            <Table>
-              <THead><TR><TH>When</TH><TH>Rule</TH><TH>Trigger</TH><TH>Result</TH><TH>Actions</TH></TR></THead>
-              <TBody>{(execs.data?.content ?? []).map((x) => (
-                <TR key={x.id}><TD className="num whitespace-nowrap text-xs">{dateTime(x.createdAt)}</TD><TD>{ruleName(x.ruleId)}</TD><TD className="text-xs">{titleCase(x.triggerEvent)}</TD>
-                  <TD><Badge tone={x.status === 'FAILED' ? 'red' : 'green'}>{titleCase(x.status)}</Badge></TD><TD className="text-xs text-muted-foreground">{x.error ?? x.actionsRun}</TD></TR>
-              ))}</TBody>
-            </Table>
+          <Card><CardContent className="pt-4">
+            {(execs.data?.content ?? []).length === 0 ? <EmptyState title="No executions yet" /> : (
+              <ul className="space-y-0.5">
+                {(execs.data?.content ?? []).map((x) => (
+                  <FeedItem key={x.id} icon={x.status === 'FAILED' ? XCircle : CheckCircle2} tone={x.status === 'FAILED' ? 'bg-breach/10 text-breach' : 'bg-ok/10 text-ok'}
+                    title={<><span className="font-semibold">{ruleName(x.ruleId)}</span> <span className="text-muted-foreground">on</span> {titleCase(x.triggerEvent)}</>}
+                    meta={x.error ?? x.actionsRun}
+                    right={<div className="flex flex-col items-end gap-1"><Badge tone={x.status === 'FAILED' ? 'red' : 'green'}>{titleCase(x.status)}</Badge><span className="display-num text-xs text-muted-foreground">{dateTime(x.createdAt)}</span></div>} />
+                ))}
+              </ul>
+            )}
             {execs.data && <Pagination page={execs.data.page} totalPages={execs.data.totalPages} total={execs.data.totalElements} onPage={setPage} />}
           </CardContent></Card>
         </TabsContent>
         <TabsContent value="approvals">
           <Card><CardHeader><div><CardTitle>Waiting for your decision</CardTitle><CardDescription>Created by rules with a request approval action</CardDescription></div></CardHeader>
-            <CardContent className="px-0">
+            <CardContent>
               {(approvals.data ?? []).length === 0 ? <EmptyState title="Nothing waiting for approval" /> : (
-                <Table><THead><TR><TH>Requested</TH><TH>Ticket</TH><TH>Reason</TH><TH /></TR></THead>
-                  <TBody>{approvals.data!.map((a) => (
-                    <TR key={a.id}><TD className="text-xs">{dateTime(a.createdAt)}</TD><TD><a className="text-primary hover:underline" href={`/tickets/${a.ticketId}`}>Open ticket</a></TD><TD className="text-sm">{a.reason}</TD>
-                      <TD className="whitespace-nowrap text-right"><Button size="sm" onClick={() => decide(a, 'APPROVED')}>Approve</Button> <Button size="sm" variant="outline" onClick={() => decide(a, 'REJECTED')}>Reject</Button></TD></TR>
-                  ))}</TBody></Table>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{approvals.data!.map((a) => (
+                  <div key={a.id} className="flex flex-col rounded-2xl bg-muted/50 p-4">
+                    <div className="flex items-center gap-3"><IconTile icon={ShieldQuestion} tone="amber" /><div><p className="font-semibold">Approval requested</p><p className="text-xs text-muted-foreground">{dateTime(a.createdAt)}</p></div></div>
+                    <p className="mt-3 text-sm">{a.reason ?? 'No reason given'}</p>
+                    <Link className="mt-1 text-sm font-medium text-primary hover:underline" to={`/tickets/${a.ticketId}`}>Open ticket</Link>
+                    <div className="mt-auto flex gap-2 pt-3"><Button size="sm" onClick={() => decide(a, 'APPROVED')}>Approve</Button><Button size="sm" variant="outline" onClick={() => decide(a, 'REJECTED')}>Reject</Button></div>
+                  </div>
+                ))}</div>
               )}
             </CardContent></Card>
         </TabsContent>
         <TabsContent value="scheduled">
           <Card><CardHeader><div><CardTitle>Scheduled attendance and SLA automations</CardTitle><CardDescription>Run by the server with distributed locks so each runs once, and catch up after restarts. Thresholds come from attendance settings.</CardDescription></div></CardHeader>
-            <CardContent><ul className="grid gap-2 sm:grid-cols-2">{(meta.data?.scheduledAttendanceAutomations ?? []).map((s) => <li key={s} className="rounded-md border px-3 py-2 text-sm">{s}</li>)}
-              <li className="rounded-md border px-3 py-2 text-sm">SLA breach detection and percentage escalations</li><li className="rounded-md border px-3 py-2 text-sm">Pending-ticket reminders and auto-close of resolved tickets</li></ul></CardContent></Card>
+            <CardContent><ul className="grid gap-2 sm:grid-cols-2">{(meta.data?.scheduledAttendanceAutomations ?? []).map((s) => <SchedItem key={s} text={s} />)}
+              <SchedItem text="SLA breach detection and percentage escalations" /><SchedItem text="Pending-ticket reminders and auto-close of resolved tickets" /></ul></CardContent></Card>
         </TabsContent>
       </Tabs>
 
@@ -159,4 +174,18 @@ export default function AutomationPage() {
       </Dialog>
     </>
   );
+}
+
+function FlowStep({ label, icon: Icon, tone, children, last }: { label: string; icon: LucideIcon; tone: string; children: ReactNode; last?: boolean }) {
+  return (
+    <div className="relative flex gap-3">
+      {!last && <span className="absolute left-[15px] top-8 h-[calc(100%-16px)] w-px border-l border-dashed border-border" />}
+      <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${tone}`}><Icon className="h-3.5 w-3.5" /></span>
+      <div className="min-w-0 flex-1 pb-1"><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><div className="mt-1 flex flex-wrap gap-1.5">{children}</div></div>
+    </div>
+  );
+}
+
+function SchedItem({ text }: { text: string }) {
+  return <li className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5 text-sm"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><CalendarClock className="h-4 w-4" /></span>{text}</li>;
 }

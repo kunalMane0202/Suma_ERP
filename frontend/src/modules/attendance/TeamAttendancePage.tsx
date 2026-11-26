@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Mail, RefreshCw, Send } from 'lucide-react';
+import { Bell, CheckCircle2, Clock, Coffee, Download, FileSpreadsheet, FileText, LogIn, LogOut, Mail, MailCheck, MailX, Moon, PenLine, RefreshCw, Send } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { FeedItem, IconTile, KeyValue, gridItem, gridParent } from '@/components/layout';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,17 +33,17 @@ function Filters({ value, onChange }: { value: Record<string, string | undefined
   return (
     <>
       {lk.projects.length > 0 && (
-        <NativeSelect aria-label="Project" className="h-8 w-44 text-xs" value={value.projectId ?? ''} onChange={(e) => onChange({ ...value, projectId: e.target.value || undefined })}>
+        <NativeSelect aria-label="Project" className="h-9 w-44 rounded-full text-xs" value={value.projectId ?? ''} onChange={(e) => onChange({ ...value, projectId: e.target.value || undefined })}>
           <option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </NativeSelect>
       )}
       {lk.teams.length > 0 && (
-        <NativeSelect aria-label="Team" className="h-8 w-44 text-xs" value={value.teamId ?? ''} onChange={(e) => onChange({ ...value, teamId: e.target.value || undefined })}>
+        <NativeSelect aria-label="Team" className="h-9 w-44 rounded-full text-xs" value={value.teamId ?? ''} onChange={(e) => onChange({ ...value, teamId: e.target.value || undefined })}>
           <option value="">All teams</option>{lk.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </NativeSelect>
       )}
       {lk.users.length > 1 && (
-        <NativeSelect aria-label="Employee" className="h-8 w-44 text-xs" value={value.userId ?? ''} onChange={(e) => onChange({ ...value, userId: e.target.value || undefined })}>
+        <NativeSelect aria-label="Employee" className="h-9 w-44 rounded-full text-xs" value={value.userId ?? ''} onChange={(e) => onChange({ ...value, userId: e.target.value || undefined })}>
           <option value="">All employees</option>{lk.users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
         </NativeSelect>
       )}
@@ -200,10 +202,17 @@ function DailyTab() {
   const [f, setF] = useState<Record<string, string | undefined>>({});
   const { data, error, loading, reload } = useApi<DailyReport>('/attendance/reports/daily', { date: day, ...clean(f) });
   return (
+    <div className="space-y-4">
+    {data && <SummaryTiles items={[
+      { label: 'Signed in', value: `${data.totals.present}/${data.totals.employees}`, bar: data.totals.employees ? data.totals.present / data.totals.employees : 0, tone: 'bg-ok' },
+      { label: 'Session time', value: duration(data.totals.sessionSeconds) },
+      { label: 'Breaks', value: `${data.totals.breakCount} · ${duration(data.totals.breakSeconds)}` },
+      { label: 'Exceptions', value: String(data.totals.exceptions), alert: data.totals.exceptions > 0 },
+    ]} />}
     <Card>
       <CardHeader className="flex-wrap">
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="date" aria-label="Date" className="h-8 w-40 text-xs" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
+          <Input type="date" aria-label="Date" className="h-9 w-40 rounded-full text-xs" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
           <Filters value={f} onChange={setF} />
         </div>
         <ExportButtons params={{ type: 'daily', date: day, ...clean(f) }} />
@@ -218,7 +227,7 @@ function DailyTab() {
               <TBody>
                 {data.rows.map(({ employee: e, day: d }) => (
                   <TR key={e.userId}>
-                    <TD><p className="font-medium">{e.fullName}</p><p className="text-xs text-muted-foreground">{e.employeeCode}{e.projectName ? ` · ${e.projectName}` : ''}{e.teamName ? ` · ${e.teamName}` : ''}</p></TD>
+                    <TD><div className="flex items-center gap-3"><Avatar name={e.fullName} className="h-8 w-8 text-[10px]" /><div><p className="font-semibold">{e.fullName}</p><p className="text-xs text-muted-foreground">{e.employeeCode}{e.projectName ? ` · ${e.projectName}` : ''}{e.teamName ? ` · ${e.teamName}` : ''}</p></div></div></TD>
                     <TD className="num">{time(d.firstLoginAt, data.timezone)}</TD>
                     <TD className="num">{d.sessions.some((s) => s.ongoing) ? <Badge tone="green">Active</Badge> : time(d.lastLogoutAt, data.timezone)}</TD>
                     <TD>{d.present ? <ShiftTimeline compact data={{ date: d.date, timezone: data.timezone, sessions: d.sessions, breaks: d.breaks, idles: d.idles }} /> : <span className="text-xs text-muted-foreground">{d.weeklyOff ? 'Weekly off' : 'No sign-in'}</span>}</TD>
@@ -231,13 +240,25 @@ function DailyTab() {
               </TBody>
             </Table>
             {data.rows.length === 0 && <EmptyState title="No employees match these filters" />}
-            <p className="px-5 pt-3 text-xs text-muted-foreground">
-              {data.totals.employees} employees · {data.totals.present} signed in · {duration(data.totals.sessionSeconds)} total session time · {data.totals.breakCount} breaks ({duration(data.totals.breakSeconds)}) · {data.totals.exceptions} exceptions
-            </p>
           </>
         )}
       </CardContent>
     </Card>
+    </div>
+  );
+}
+
+function SummaryTiles({ items }: { items: { label: string; value: string; bar?: number; tone?: string; alert?: boolean }[] }) {
+  return (
+    <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4" initial="hidden" animate="show" variants={gridParent}>
+      {items.map((i) => (
+        <motion.div key={i.label} variants={gridItem} className="glass p-4">
+          <p className="text-xs text-muted-foreground">{i.label}</p>
+          <p className={`display-num mt-1 text-2xl ${i.alert ? 'text-breach' : ''}`}>{i.value}</p>
+          {i.bar !== undefined && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${i.tone ?? 'bg-brand'}`} style={{ width: `${Math.round(i.bar * 100)}%` }} /></div>}
+        </motion.div>
+      ))}
+    </motion.div>
   );
 }
 
@@ -246,11 +267,21 @@ function MonthlyTab() {
   const [y, m] = month.split('-').map(Number);
   const [f, setF] = useState<Record<string, string | undefined>>({});
   const { data, error, loading, reload } = useApi<MonthlyReport>('/attendance/reports/monthly', { year: y, month: m, ...clean(f) });
+  const emps = data?.employees ?? [];
+  const maxDays = Math.max(1, ...emps.map((x) => x.daysPresent + x.missingLoginDays));
+  const sum = (k: (x: (typeof emps)[number]) => number) => emps.reduce((a, x) => a + k(x), 0);
   return (
+    <div className="space-y-4">
+    {data && <SummaryTiles items={[
+      { label: 'Employees', value: String(emps.length) },
+      { label: 'Session time', value: duration(sum((x) => x.sessionSeconds)) },
+      { label: 'Breaks over limit', value: String(sum((x) => x.exceededBreakCount)), alert: sum((x) => x.exceededBreakCount) > 0 },
+      { label: 'Missing logouts', value: String(sum((x) => x.missingLogoutCount)), alert: sum((x) => x.missingLogoutCount) > 0 },
+    ]} />}
     <Card>
       <CardHeader className="flex-wrap">
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="month" aria-label="Month" className="h-8 w-40 text-xs" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
+          <Input type="month" aria-label="Month" className="h-9 w-40 rounded-full text-xs" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
           <Filters value={f} onChange={setF} />
         </div>
         <ExportButtons params={{ type: 'monthly', year: y, month: m, ...clean(f) }} />
@@ -264,8 +295,8 @@ function MonthlyTab() {
               <TBody>
                 {data.employees.map((x) => (
                   <TR key={x.employee.userId}>
-                    <TD><p className="font-medium">{x.employee.fullName}</p><p className="text-xs text-muted-foreground">{x.employee.employeeCode}{x.employee.projectName ? ` · ${x.employee.projectName}` : ''}</p></TD>
-                    <TD className="num text-right">{x.daysPresent}</TD><TD className="num text-right">{duration(x.sessionSeconds)}</TD><TD className="num text-right">{x.breakCount}</TD>
+                    <TD><div className="flex items-center gap-3"><Avatar name={x.employee.fullName} className="h-8 w-8 text-[10px]" /><div><p className="font-semibold">{x.employee.fullName}</p><p className="text-xs text-muted-foreground">{x.employee.employeeCode}{x.employee.projectName ? ` · ${x.employee.projectName}` : ''}</p></div></div></TD>
+                    <TD className="num text-right"><div className="flex items-center justify-end gap-2"><div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted sm:block"><div className="h-full rounded-full bg-brand" style={{ width: `${(x.daysPresent / maxDays) * 100}%` }} /></div>{x.daysPresent}</div></TD><TD className="num text-right">{duration(x.sessionSeconds)}</TD><TD className="num text-right">{x.breakCount}</TD>
                     <TD className="num text-right">{duration(x.breakSeconds)}</TD><TD className="num text-right">{duration(x.averageBreakSeconds)}</TD>
                     <TD className={`num text-right ${x.exceededBreakCount ? 'text-breach' : ''}`}>{x.exceededBreakCount}</TD>
                     <TD className="num text-right">{x.idleCount}</TD><TD className={`num text-right ${x.missingLogoutCount ? 'text-breach' : ''}`}>{x.missingLogoutCount}</TD>
@@ -280,6 +311,7 @@ function MonthlyTab() {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
 
@@ -331,27 +363,28 @@ function DeliveryTab() {
         {loading && !data ? <TableSkeleton /> : (data?.length ?? 0) === 0 ? (
           <EmptyState icon={<Mail />} title="No monthly reports yet" description="The first report is generated on the 1st of next month. Administrators can also send one for a completed month." />
         ) : (
-          <Table>
-            <THead><TR><TH>Project</TH><TH>Period</TH><TH>Recipient</TH><TH>Status</TH><TH className="text-right">Employees</TH><TH className="text-right">Attempts</TH><TH>Sent / next retry</TH><TH /></TR></THead>
-            <TBody>
-              {data!.map((l) => (
-                <TR key={l.id}>
-                  <TD className="font-medium">{projectName(l.projectId)}</TD>
-                  <TD className="num">{l.periodYear}-{String(l.periodMonth).padStart(2, '0')}</TD>
-                  <TD className="text-xs">{l.recipientEmail ?? '—'}</TD>
-                  <TD><Badge tone={deliveryTone[l.status] ?? 'neutral'}>{titleCase(l.status)}</Badge>{l.lastError && <p className="mt-1 max-w-xs truncate text-xs text-muted-foreground" title={l.lastError}>{l.lastError}</p>}</TD>
-                  <TD className="num text-right">{l.employeeCount}</TD><TD className="num text-right">{l.attempts}</TD>
-                  <TD className="text-xs">{l.sentAt ? dateTime(l.sentAt) : l.nextRetryAt ? `retry ${relative(l.nextRetryAt)}` : '—'}</TD>
-                  <TD className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => download(`/attendance/monthly-reports/${l.id}/download`, { format: 'xlsx' }).catch((e) => toast.error(errorMessage(e)))}><Download /> Excel</Button>
-                      {can('ATTENDANCE_MANAGE') && <Button variant="ghost" size="sm" onClick={() => resend(l)}><Send /> {l.status === 'SENT' ? 'Resend' : 'Send'}</Button>}
-                    </div>
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <div className="grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-3">
+            {data!.map((l) => (
+              <div key={l.id} className="flex flex-col rounded-2xl border border-border/60 bg-muted/40 p-4">
+                <div className="flex items-start gap-3">
+                  <IconTile icon={l.status === 'SENT' ? MailCheck : l.status === 'FAILED' ? MailX : Mail} tone={l.status === 'SENT' ? 'mint' : l.status === 'FAILED' ? 'coral' : 'soft'} />
+                  <div className="min-w-0 flex-1"><p className="truncate font-semibold">{projectName(l.projectId)}</p>
+                    <p className="display-num text-xs text-muted-foreground">{new Date(l.periodYear, l.periodMonth - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' })}</p></div>
+                  <Badge tone={deliveryTone[l.status] ?? 'neutral'}>{titleCase(l.status)}</Badge>
+                </div>
+                <KeyValue className="mt-3 bg-card/70" items={[
+                  ['Recipient', <span className="block max-w-[11rem] truncate text-xs" title={l.recipientEmail}>{l.recipientEmail ?? '—'}</span>],
+                  ['Employees', l.employeeCount], ['Attempts', l.attempts],
+                  [l.sentAt ? 'Sent' : 'Next retry', l.sentAt ? dateTime(l.sentAt) : l.nextRetryAt ? relative(l.nextRetryAt) : '—'],
+                ]} />
+                {l.lastError && <p className="mt-2 truncate rounded-lg bg-breach/10 px-2 py-1 text-xs text-breach" title={l.lastError}>{l.lastError}</p>}
+                <div className="mt-3 flex justify-end gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => download(`/attendance/monthly-reports/${l.id}/download`, { format: 'xlsx' }).catch((e) => toast.error(errorMessage(e)))}><Download /> Excel</Button>
+                  {can('ATTENDANCE_MANAGE') && <Button variant="ghost" size="sm" onClick={() => resend(l)}><Send /> {l.status === 'SENT' ? 'Resend' : 'Send'}</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
       <Dialog open={open} onOpenChange={setOpen} title="Send a monthly attendance report" description="Only completed months can be sent. A period that was already generated cannot be generated twice; use Resend instead."
@@ -370,6 +403,11 @@ function DeliveryTab() {
   );
 }
 
+const EVENT_ICON: Record<string, [LucideIcon, string]> = {
+  LOGIN: [LogIn, 'bg-ok/10 text-ok'], LOGOUT: [LogOut, 'bg-muted text-muted-foreground'], BREAK_START: [Coffee, 'bg-warn/15 text-warn'], BREAK_END: [Coffee, 'bg-warn/10 text-warn'],
+  IDLE_START: [Moon, 'bg-idle/15 text-idle'], IDLE_END: [Moon, 'bg-idle/10 text-idle'], STATUS_CONFIRMED: [CheckCircle2, 'bg-ok/10 text-ok'], REMINDER_SENT: [Bell, 'bg-sky/15 text-sky'], CORRECTION: [PenLine, 'bg-breach/10 text-breach'],
+};
+
 interface EventRow { id: string; userId: string; userName?: string; eventType: string; occurredAt: string; source: string; details?: string }
 
 function HistoryTab() {
@@ -383,13 +421,13 @@ function HistoryTab() {
     <Card>
       <CardHeader className="flex-wrap">
         <div className="flex flex-wrap items-center gap-2">
-          {lk.users.length > 1 && <NativeSelect aria-label="Employee" className="h-8 w-44 text-xs" value={f.userId ?? ''} onChange={(e) => { setPage(0); setF({ ...f, userId: e.target.value || undefined }); }}><option value="">All employees</option>{lk.users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}</NativeSelect>}
-          <NativeSelect aria-label="Event type" className="h-8 w-44 text-xs" value={f.type ?? ''} onChange={(e) => { setPage(0); setF({ ...f, type: e.target.value || undefined }); }}>
+          {lk.users.length > 1 && <NativeSelect aria-label="Employee" className="h-9 w-44 rounded-full text-xs" value={f.userId ?? ''} onChange={(e) => { setPage(0); setF({ ...f, userId: e.target.value || undefined }); }}><option value="">All employees</option>{lk.users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}</NativeSelect>}
+          <NativeSelect aria-label="Event type" className="h-9 w-44 rounded-full text-xs" value={f.type ?? ''} onChange={(e) => { setPage(0); setF({ ...f, type: e.target.value || undefined }); }}>
             <option value="">All events</option>
             {['LOGIN', 'LOGOUT', 'BREAK_START', 'BREAK_END', 'IDLE_START', 'IDLE_END', 'STATUS_CONFIRMED', 'REMINDER_SENT', 'CORRECTION'].map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}
           </NativeSelect>
-          <Input type="date" aria-label="From" className="h-8 w-40 text-xs" value={f.from ?? ''} onChange={(e) => setF({ ...f, from: e.target.value || undefined })} />
-          <Input type="date" aria-label="To" className="h-8 w-40 text-xs" value={f.to ?? ''} onChange={(e) => setF({ ...f, to: e.target.value || undefined })} />
+          <Input type="date" aria-label="From" className="h-9 w-40 rounded-full text-xs" value={f.from ?? ''} onChange={(e) => setF({ ...f, from: e.target.value || undefined })} />
+          <Input type="date" aria-label="To" className="h-9 w-40 rounded-full text-xs" value={f.to ?? ''} onChange={(e) => setF({ ...f, to: e.target.value || undefined })} />
         </div>
         {can('ATTENDANCE_MANAGE') && <Button size="sm" variant="outline" onClick={() => setCorr(true)}>Correct a record</Button>}
       </CardHeader>
@@ -397,15 +435,17 @@ function HistoryTab() {
         {error && <div className="px-5"><ErrorState message={error} onRetry={reload} /></div>}
         {loading && !data ? <TableSkeleton /> : data && (
           <>
-            <Table>
-              <THead><TR><TH>When</TH><TH>Employee</TH><TH>Event</TH><TH>Source</TH><TH>Details</TH></TR></THead>
-              <TBody>
-                {data.content.map((e) => (
-                  <TR key={e.id}><TD className="num whitespace-nowrap text-xs">{dateTime(e.occurredAt)}</TD><TD>{e.userName}</TD><TD><Badge tone={e.eventType === 'CORRECTION' ? 'red' : e.eventType.startsWith('IDLE') ? 'violet' : e.eventType.startsWith('BREAK') ? 'amber' : 'blue'}>{titleCase(e.eventType)}</Badge></TD>
-                    <TD className="text-xs">{titleCase(e.source)}</TD><TD className="max-w-md truncate text-xs text-muted-foreground" title={e.details}>{e.details}</TD></TR>
-                ))}
-              </TBody>
-            </Table>
+            <ul className="space-y-0.5 px-2">
+              {data.content.map((e) => {
+                const [Icon, tone] = EVENT_ICON[e.eventType] ?? [Clock, 'bg-primary/10 text-primary'];
+                return (
+                  <FeedItem key={e.id} icon={Icon} tone={tone}
+                    title={<><span className="font-semibold">{e.userName}</span> <span className="text-muted-foreground">·</span> {titleCase(e.eventType)}</>}
+                    meta={<>{titleCase(e.source)}{e.details ? ` · ${e.details}` : ''}</>}
+                    right={<span className="display-num whitespace-nowrap text-xs text-muted-foreground">{dateTime(e.occurredAt)}</span>} />
+                );
+              })}
+            </ul>
             {data.content.length === 0 && <EmptyState title="No attendance events for these filters" />}
             <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
           </>

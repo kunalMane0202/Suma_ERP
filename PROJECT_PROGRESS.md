@@ -1,7 +1,7 @@
 # Project progress
 
 Statuses: NOT STARTED · IN PROGRESS · BLOCKED · TESTING · COMPLETED. "Tested" refers to automated tests that were executed
-and passed in this environment (see OVERNIGHT_DEVELOPMENT_REPORT.md for the exact runs). Last updated: 2026-11-25.
+and passed in this environment (see OVERNIGHT_DEVELOPMENT_REPORT.md for the exact runs). Last updated: 2026-11-26.
 
 | ID | Module | Feature | Depends on | Priority | Status | Test status | Known issues |
 |---|---|---|---|---|---|---|---|
@@ -45,7 +45,8 @@ and passed in this environment (see OVERNIGHT_DEVELOPMENT_REPORT.md for the exac
 | I-01 | Integrations | Jira, Salesforce, REST, IMAP connectors, mapping, encryption, retries, logs | T-02 | P1 | TESTING | not tested against real systems | BLOCKED on credentials for live verification |
 | C-01 | Configuration | Attendance settings (global + project), break policies, system settings, statuses/priorities, email templates, roles, job history | — | P0 | COMPLETED | E2E (render) ✔ | custom ticket field definitions and dashboard widget toggles have DB/API support but no admin UI |
 | U-01 | UI | Light default, dark mode, responsive (390 px), motion | — | P0 | COMPLETED | Vitest ✔ E2E ✔ visual ✔ | — |
-| U-02 | UI | Redesign "Bento + soft depth": Sora/DM Sans, indigo→violet brand gradient, floating collapsible sidebar, Ctrl+K command palette, bento dashboard, shift ring, avatar status cards, masonry knowledge base, security hero gauge | U-01 | P1 | COMPLETED | typecheck ✔ Vitest 12/12 ✔ E2E 14/14 ✔ 390 px overflow ✔ | other pages restyled through shared primitives only |
+| U-02 | UI | Redesign "Bento + soft depth": Sora/DM Sans, indigo→violet brand gradient, floating collapsible sidebar, Ctrl+K command palette, bento dashboard, shift ring, avatar status cards, masonry knowledge base, security hero gauge | U-01 | P1 | COMPLETED | typecheck ✔ Vitest 12/12 ✔ E2E 14/14 ✔ 390 px overflow ✔ | — |
+| U-03 | UI | Bento layouts on every remaining page: hero banners, filter bars, card/table toggles (tickets, clients, projects, employees), chat-style ticket conversation with SLA gauge, people/team cards, workload leaderboard, 24 h shift tracks, SLA policy cards and calendar day pills, automation WHEN→IF→THEN flow cards, connector cards, day-grouped audit timeline, grouped notifications, profile hero, attendance summary tiles and delivery cards, security feeds and IP rule cards, configuration section tiles and permission matrix | U-02 | P1 | COMPLETED | typecheck ✔ Vitest 12/12 ✔ build ✔ E2E 14/14 ✔ 390 px overflow ✔ (17 pages) | data tables kept where E2E or bulk scanning needs rows (daily/monthly attendance, sign-ins, unauthenticated, sessions) |
 | Q-01 | QA | Backend unit + integration tests | — | P0 | COMPLETED | 50/50 ✔ | — |
 | Q-02 | QA | Frontend Vitest | — | P1 | COMPLETED | 12/12 ✔ | — |
 | Q-03 | QA | Playwright E2E | — | P0 | COMPLETED | 14/14 ✔ | — |

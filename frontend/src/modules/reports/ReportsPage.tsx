@@ -1,4 +1,6 @@
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Building2, Calendar, CalendarClock, CalendarDays, CalendarRange, Clock, Download, FileSpreadsheet, FolderKanban, Hourglass, Timer, Trophy, UsersRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { IconTile } from '@/components/layout';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
@@ -15,6 +17,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { download, errorMessage } from '@/services/api';
 import { CHART, tooltipStyle } from '@/utils/chart';
 import { dateTime, isoDate } from '@/utils/format';
+
+const ICONS: Record<string, LucideIcon> = { productivity: Trophy, sla: Timer, pending: Hourglass, ageing: CalendarClock, daily: CalendarDays, weekly: CalendarRange, monthly: Calendar, client: Building2, project: FolderKanban, team: UsersRound };
 
 const TYPES: { key: string; label: string; description: string; chart?: { x: string; bars: [string, string][] } }[] = [
   { key: 'productivity', label: 'Employee productivity', description: 'Assigned, resolved and breached tickets per engineer', chart: { x: 'employee', bars: [['resolved', CHART.ok], ['open', CHART.primary], ['breached', CHART.breach]] } },
@@ -51,8 +55,8 @@ export default function ReportsPage() {
     <>
       <PageHeader title="Reports & analytics" description="Operational reports computed from live ticket data. Attendance reports live under Team attendance." />
       {(can('ATTENDANCE_REPORT_VIEW') || user?.projectLead) && (
-        <Card className="mb-4"><CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-          <div><p className="font-medium">Attendance reports</p><p className="text-sm text-muted-foreground">Daily and monthly attendance with Excel, CSV and PDF export, plus Project Lead deliveries.</p></div>
+        <Card tone="tint" className="mb-4"><CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <div className="flex items-center gap-3"><IconTile icon={Clock} tone="brand" /><div><p className="font-semibold">Attendance reports</p><p className="text-sm text-muted-foreground">Daily and monthly attendance with Excel, CSV and PDF export, plus Project Lead deliveries.</p></div></div>
           <Button asChild variant="outline"><Link to="/attendance/team">Open attendance reports</Link></Button>
         </CardContent></Card>
       )}
@@ -61,7 +65,9 @@ export default function ReportsPage() {
           <Card className="h-fit p-2">
             <nav aria-label="Report types"><ul className="space-y-0.5">
               {TYPES.map((t) => (
-                <li key={t.key}><button onClick={() => setType(t.key)} className={`w-full rounded-md px-3 py-2 text-left text-sm ${type === t.key ? 'bg-brand text-white shadow-glow' : 'hover:bg-accent'}`}>{t.label}</button></li>
+                <li key={t.key}><button onClick={() => setType(t.key)} className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${type === t.key ? 'bg-brand text-white shadow-glow' : 'hover:bg-accent'}`}>
+                  {(() => { const I = ICONS[t.key] ?? FileSpreadsheet; return <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${type === t.key ? 'bg-white/20' : 'bg-primary/10 text-primary'}`}><I className="h-4 w-4" /></span>; })()}
+                  <span className="font-medium">{t.label}</span></button></li>
               ))}
             </ul></nav>
           </Card>
@@ -70,12 +76,19 @@ export default function ReportsPage() {
               <CardHeader className="flex-wrap">
                 <div><CardTitle>{def.label}</CardTitle><CardDescription>{def.description}{data ? ` · ${data.from} to ${data.to}` : ''}</CardDescription></div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Input type="date" aria-label="From" className="h-8 w-40 text-xs" value={from} onChange={(e) => setFrom(e.target.value)} />
-                  <Input type="date" aria-label="To" className="h-8 w-40 text-xs" value={to} onChange={(e) => setTo(e.target.value)} />
-                  {lk.projects.length > 0 && <NativeSelect aria-label="Project" className="h-8 w-44 text-xs" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>}
+                  <Input type="date" aria-label="From" className="h-9 w-40 rounded-full text-xs" value={from} onChange={(e) => setFrom(e.target.value)} />
+                  <Input type="date" aria-label="To" className="h-9 w-40 rounded-full text-xs" value={to} onChange={(e) => setTo(e.target.value)} />
+                  {lk.projects.length > 0 && <NativeSelect aria-label="Project" className="h-9 w-44 rounded-full text-xs" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>}
                   {can('REPORT_EXPORT') && <><Button size="sm" variant="outline" onClick={() => exp('xlsx')}><FileSpreadsheet /> Excel</Button><Button size="sm" variant="outline" onClick={() => exp('csv')}><Download /> CSV</Button></>}
                 </div>
               </CardHeader>
+              {data && data.rows.length > 0 && totals(data).length > 0 && (
+                <div className="grid grid-cols-2 gap-2 px-5 pb-4 sm:grid-cols-4">
+                  {totals(data).slice(0, 4).map(([k, v]) => (
+                    <div key={k} className="rounded-2xl bg-muted/60 px-4 py-3"><p className="truncate text-xs text-muted-foreground">Total {label(k).toLowerCase()}</p><p className="display-num text-2xl">{v.toLocaleString()}</p></div>
+                  ))}
+                </div>
+              )}
               {def.chart && data && data.rows.length > 0 && (
                 <CardContent className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -85,13 +98,13 @@ export default function ReportsPage() {
                       <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                       <RTooltip {...tooltipStyle} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      {def.chart.bars.map(([k, c]) => <Bar key={k} dataKey={k} name={label(k)} fill={c} radius={[3, 3, 0, 0]} stackId={type === 'ageing' ? 'a' : undefined} />)}
+                      {def.chart.bars.map(([k, c]) => <Bar key={k} dataKey={k} name={label(k)} fill={c} radius={type === 'ageing' ? 0 : [6, 6, 0, 0]} maxBarSize={28} stackId={type === 'ageing' ? 'a' : undefined} />)}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               )}
             </Card>
-            <Card>
+            <Card className="pt-2">
               {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
               {loading && !data ? <TableSkeleton /> : data && (data.rows.length === 0 ? <EmptyState title="No data for this range" /> : (
                 <Table>
@@ -105,4 +118,9 @@ export default function ReportsPage() {
       )}
     </>
   );
+}
+
+function totals(r: Report): [string, number][] {
+  return r.columns.filter((c) => !/percent|pct|rate|avg|average|hours|minutes|age/i.test(c) && r.rows.every((x) => typeof x[c] === 'number' || x[c] == null) && r.rows.some((x) => typeof x[c] === 'number'))
+    .map((c) => [c, r.rows.reduce((a, x) => a + (Number(x[c]) || 0), 0)]);
 }

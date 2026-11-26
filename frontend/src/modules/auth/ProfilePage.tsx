@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader } from '@/components/common';
+import { Avatar, PageHeader } from '@/components/common';
+import { IconTile } from '@/components/layout';
+import { KeyRound, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { api, errorMessage } from '@/services/api';
@@ -36,18 +38,32 @@ export default function ProfilePage() {
   return (
     <>
       <PageHeader title="Profile" />
+      <Card tone="brand" className="relative mb-5 overflow-hidden">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
+          <Avatar name={user.fullName} className="h-20 w-20 text-2xl ring-4 ring-white/30" />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-2xl font-semibold">{user.fullName}</p>
+            <p className="text-sm text-white/75">{user.employeeCode} · {user.email}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">{titleCase(user.role)}</span>
+              {user.projects.map((p) => <span key={p.id} className="rounded-full bg-white/10 px-3 py-1 text-xs">{p.name}{p.designation !== 'MEMBER' ? ` · ${titleCase(p.designation)}` : ''}</span>)}
+            </div>
+          </div>
+        </div>
+      </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><div><CardTitle>{user.fullName}</CardTitle><CardDescription>{user.employeeCode} · {user.email}</CardDescription></div><Badge tone="blue">{titleCase(user.role)}</Badge></CardHeader>
+          <CardHeader><div className="flex items-center gap-3"><IconTile icon={SlidersHorizontal} tone="soft" /><div><CardTitle>Preferences</CardTitle><CardDescription>How SUMA looks for you</CardDescription></div></div></CardHeader>
           <CardContent className="space-y-4">
             <div><p className="text-sm font-medium">Projects</p>
               <div className="mt-1 flex flex-wrap gap-1">{user.projects.length ? user.projects.map((p) => <Badge key={p.id} tone={p.designation === 'PROJECT_LEAD' ? 'navy' : 'neutral'}>{p.name}{p.designation !== 'MEMBER' ? ` · ${titleCase(p.designation)}` : ''}</Badge>) : <span className="text-sm text-muted-foreground">None</span>}</div></div>
-            <label className="flex items-center justify-between rounded-md border p-3 text-sm"><span><span className="font-medium">Dark mode</span><span className="block text-xs text-muted-foreground">Light mode is the default. Your choice is saved to your account.</span></span>
+            <label className="flex items-center justify-between rounded-xl bg-muted/60 p-4 text-sm"><span><span className="font-medium">Dark mode</span><span className="block text-xs text-muted-foreground">Light mode is the default. Your choice is saved to your account.</span></span>
               <Switch checked={theme === 'DARK'} onCheckedChange={setDark} aria-label="Dark mode" /></label>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Change password</CardTitle></CardHeader>
+          <CardHeader><div className="flex items-center gap-3"><IconTile icon={KeyRound} tone="brand" /><div><CardTitle>Change password</CardTitle><CardDescription>At least 10 characters with upper and lower case letters and a digit</CardDescription></div></div></CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={handleSubmit(submit)} noValidate>
               <Field label="Current password" htmlFor="cp" error={errors.currentPassword?.message}><Input id="cp" type="password" autoComplete="current-password" {...register('currentPassword')} /></Field>

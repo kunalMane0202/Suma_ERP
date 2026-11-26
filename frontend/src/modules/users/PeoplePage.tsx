@@ -1,5 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound, Plus, Search, Unlock } from 'lucide-react';
+import { Clock, KeyRound, Plus, Unlock, UsersRound } from 'lucide-react';
+import { motion } from 'motion/react';
+import { CardGrid, FilterBar, GridCard, IconTile, SearchField, SegmentedControl, gridItem, gridParent } from '@/components/layout';
+import { AvatarStack } from '@/components/viz';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -52,6 +55,7 @@ function Employees() {
   const [editing, setEditing] = useState<UserRow | null | undefined>(undefined);
   const [reset, setReset] = useState<UserRow | null>(null);
   const [pw, setPw] = useState('');
+  const [layout, setLayout] = useState<'cards' | 'table'>('cards');
   const doReset = async () => {
     try { await api.post(`/users/${reset!.id}/reset-password`, { newPassword: pw }); toast.success('Password reset'); setReset(null); setPw(''); } catch (e) { toast.error(errorMessage(e)); }
   };
@@ -59,23 +63,45 @@ function Employees() {
     try { await api.post(`/users/${u.id}/unlock`); toast.success(`${u.fullName} unlocked`); reload(); } catch (e) { toast.error(errorMessage(e)); }
   };
   return (
-    <Card>
-      <div className="flex flex-wrap items-center gap-2 p-4">
-        <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search name, code, username or email" aria-label="Search employees" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
-        <NativeSelect aria-label="Role" className="w-40" value={role} onChange={(e) => setRole(e.target.value)}><option value="">All roles</option>{['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3'].map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}</NativeSelect>
-        <div className="flex-1" />
-        <Can permission="USER_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add employee</Button></Can>
-      </div>
-      {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
-      {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No employees found" /> : (
+    <>
+      <FilterBar right={<div className="flex items-center gap-2"><SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />
+        <Can permission="USER_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add employee</Button></Can></div>}>
+        <SearchField label="Search employees" placeholder="Search name, code, username or email" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        <NativeSelect aria-label="Role" className="w-40 rounded-full" value={role} onChange={(e) => setRole(e.target.value)}><option value="">All roles</option>{['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3'].map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}</NativeSelect>
+      </FilterBar>
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.content.length === 0 ? <Card><EmptyState title="No employees found" /></Card> : layout === 'cards' ? (
         <>
+          <CardGrid className="xl:grid-cols-4">
+            {data.content.map((u) => (
+              <GridCard key={u.id} className="items-center text-center">
+                <div className="relative"><Avatar name={u.fullName} className="h-16 w-16 text-lg" />
+                  <span className={`absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full ring-2 ring-card ${u.status === 'ACTIVE' ? 'bg-ok' : u.status === 'LOCKED' ? 'bg-breach' : 'bg-muted-foreground/50'}`} /></div>
+                <p className="mt-3 font-display text-[15px] font-semibold">{u.fullName}</p>
+                <p className="text-xs text-muted-foreground">{u.jobTitle ?? u.employeeCode}</p>
+                <div className="mt-2 flex flex-wrap justify-center gap-1"><Badge tone={u.role === 'ADMIN' ? 'navy' : 'blue'}>{titleCase(u.role)}</Badge>{u.status !== 'ACTIVE' && <Badge tone={u.status === 'LOCKED' ? 'red' : 'neutral'}>{titleCase(u.status)}</Badge>}</div>
+                <div className="mt-3 flex w-full gap-1 rounded-xl bg-muted/60 p-1.5">
+                  {DAYS.map((d, i) => <span key={d} title={u.weeklyOffs.includes(i + 1) ? `${d}: weekly off` : d} className={`flex-1 rounded-md py-0.5 text-[10px] font-semibold ${u.weeklyOffs.includes(i + 1) ? 'bg-card text-muted-foreground' : 'bg-primary/10 text-primary'}`}>{d[0]}</span>)}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{u.shiftName ?? 'No shift'} · {u.lastLoginAt ? `seen ${relative(u.lastLoginAt)}` : 'never signed in'}</p>
+                <div className="mt-auto flex justify-center pt-2"><Can permission="USER_WRITE">
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(u)}>Edit</Button>
+                  <Button variant="ghost" size="icon" aria-label={`Reset password for ${u.fullName}`} onClick={() => setReset(u)}><KeyRound /></Button>
+                  {u.status === 'LOCKED' && <Button variant="ghost" size="icon" aria-label={`Unlock ${u.fullName}`} onClick={() => unlock(u)}><Unlock /></Button>}
+                    </Can></div>
+              </GridCard>
+            ))}
+          </CardGrid>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      ) : (
+        <Card className="pt-2">
           <Table>
             <THead><TR><TH>Employee</TH><TH>Role</TH><TH>Shift</TH><TH>Weekly off</TH><TH>Last sign-in</TH><TH>Status</TH><TH /></TR></THead>
             <TBody>
               {data.content.map((u) => (
                 <TR key={u.id}>
-                  <TD><div className="flex items-center gap-3"><Avatar name={u.fullName} /><div><p className="font-medium">{u.fullName}</p><p className="text-xs text-muted-foreground">{u.employeeCode} · {u.email}</p></div></div></TD>
+                  <TD><div className="flex items-center gap-3"><Avatar name={u.fullName} /><div><p className="font-semibold">{u.fullName}</p><p className="text-xs text-muted-foreground">{u.employeeCode} · {u.email}</p></div></div></TD>
                   <TD><Badge tone={u.role === 'ADMIN' ? 'navy' : 'blue'}>{titleCase(u.role)}</Badge><p className="mt-0.5 text-xs text-muted-foreground">{u.jobTitle}</p></TD>
                   <TD className="text-sm">{u.shiftName ?? '—'}</TD>
                   <TD className="text-xs">{u.weeklyOffs.map((d) => DAYS[d - 1]).join(', ') || '—'}</TD>
@@ -93,14 +119,14 @@ function Employees() {
             </TBody>
           </Table>
           <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
-        </>
+        </Card>
       ))}
       {editing !== undefined && <UserDialog user={editing} onClose={(c) => { setEditing(undefined); if (c) { invalidateLookups(); reload(); } }} />}
       <Dialog open={!!reset} onOpenChange={(o) => !o && setReset(null)} title={`Reset password for ${reset?.fullName ?? ''}`} description="At least 10 characters with upper and lower case letters and a digit."
         footer={<><Button variant="outline" onClick={() => setReset(null)}>Cancel</Button><Button disabled={pw.length < 10} onClick={doReset}>Reset password</Button></>}>
         <Field label="New password" htmlFor="pw"><Input id="pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
@@ -180,21 +206,39 @@ function Teams() {
     <>
       <div className="mb-3 flex justify-end"><Can permission="TEAM_WRITE"><Button onClick={() => open(null)}><Plus /> New team</Button></Can></div>
       {loading && !data ? <TableSkeleton /> : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {(data ?? []).map((t) => (
-            <Card key={t.id}>
-              <CardHeader><div><CardTitle>{t.name}</CardTitle><CardDescription>{t.projectName ?? 'No project'} · led by {t.teamLeaderName ?? 'nobody'}</CardDescription></div>
-                <Can permission="TEAM_WRITE"><Button variant="ghost" size="sm" onClick={() => open(t)}>Edit</Button></Can></CardHeader>
-              <CardContent>
-                <div className="mb-3 flex gap-4 text-sm"><span><b className="num">{t.openTickets}</b> open</span><span><b className="num">{t.resolvedLast30Days}</b> resolved in 30 days</span></div>
-                <ul className="space-y-1.5">
-                  {t.members.map((m) => <li key={m.id} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><Avatar name={m.fullName} className="h-6 w-6 text-[9px]" />{m.fullName} <span className="text-xs text-muted-foreground">{m.role}</span></span><span className="num text-xs text-muted-foreground">{m.openTickets} open</span></li>)}
+        <CardGrid>
+          {(data ?? []).map((t) => {
+            const top = Math.max(1, ...t.members.map((m) => m.openTickets));
+            return (
+              <GridCard key={t.id}>
+                <div className="flex items-start gap-3">
+                  <IconTile icon={UsersRound} tone="brand" />
+                  <div className="min-w-0 flex-1"><p className="font-display text-[16px] font-semibold">{t.name}</p><p className="truncate text-xs text-muted-foreground">{t.projectName ?? 'No project'}</p></div>
+                  <Can permission="TEAM_WRITE"><Button variant="ghost" size="sm" onClick={() => open(t)}>Edit</Button></Can>
+                </div>
+                <div className="mt-4 flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2">
+                  {t.teamLeaderName ? <Avatar name={t.teamLeaderName} className="h-8 w-8 text-[10px]" /> : <span className="h-8 w-8 rounded-full bg-muted" />}
+                  <div className="min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Team leader</p><p className="truncate text-sm font-semibold">{t.teamLeaderName ?? 'Not set'}</p></div>
+                  <AvatarStack names={t.members.map((m) => m.fullName)} max={4} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-xl bg-primary/10 py-2"><p className="display-num text-xl text-primary">{t.openTickets}</p><p className="text-[11px] text-muted-foreground">open</p></div>
+                  <div className="rounded-xl bg-ok/10 py-2"><p className="display-num text-xl text-ok">{t.resolvedLast30Days}</p><p className="text-[11px] text-muted-foreground">resolved in 30 days</p></div>
+                </div>
+                <ul className="mt-3 space-y-2">
+                  {t.members.map((m) => (
+                    <li key={m.id} className="flex items-center gap-2 text-sm">
+                      <Avatar name={m.fullName} className="h-6 w-6 text-[9px]" /><span className="min-w-0 flex-1 truncate">{m.fullName} <span className="text-xs text-muted-foreground">{m.role}</span></span>
+                      <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-brand" style={{ width: `${(m.openTickets / top) * 100}%` }} /></div>
+                      <span className="num w-12 text-right text-xs text-muted-foreground">{m.openTickets} open</span>
+                    </li>
+                  ))}
                 </ul>
-              </CardContent>
-            </Card>
-          ))}
-          {data?.length === 0 && <EmptyState title="No teams yet" />}
-        </div>
+              </GridCard>
+            );
+          })}
+          {data?.length === 0 && <Card className="sm:col-span-2 xl:col-span-3"><EmptyState title="No teams yet" /></Card>}
+        </CardGrid>
       )}
       <Dialog open={edit !== undefined} onOpenChange={(o) => !o && setEdit(undefined)} title={edit ? `Edit ${edit.name}` : 'New team'}
         footer={<><Button variant="outline" onClick={() => setEdit(undefined)}>Cancel</Button><Button disabled={!form.name.trim()} onClick={save}>Save team</Button></>}>
@@ -226,27 +270,36 @@ function Workload() {
   return (
     <Card>
       <CardHeader><div><CardTitle>Current workload and productivity</CardTitle><CardDescription>Open tickets against capacity, and tickets resolved in the last 30 days</CardDescription></div></CardHeader>
-      <CardContent className="px-0">
+      <CardContent>
         {loading && !data ? <TableSkeleton /> : (
-          <Table>
-            <THead><TR><TH>Engineer</TH><TH className="w-1/3">Open load</TH><TH className="text-right">In progress</TH><TH className="text-right">Pending</TH><TH className="text-right">Breached open</TH><TH className="text-right">Resolved (30d)</TH></TR></THead>
-            <TBody>
-              {(data ?? []).map((r) => (
-                <TR key={r.userId}>
-                  <TD><p className="font-medium">{r.fullName}</p><p className="text-xs text-muted-foreground">{r.employeeCode} · {r.role}</p></TD>
-                  <TD><div className="flex items-center gap-2"><div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className={`h-full ${r.capacity && r.open >= r.capacity ? 'bg-breach' : 'bg-primary'}`} style={{ width: `${(r.open / max) * 100}%` }} /></div>
-                    <span className="num w-14 text-right text-xs">{r.open}{r.capacity ? ` / ${r.capacity}` : ''}</span></div></TD>
-                  <TD className="num text-right">{r.inProgress}</TD><TD className="num text-right">{r.pending}</TD>
-                  <TD className={`num text-right ${r.breachedOpen ? 'text-breach' : ''}`}>{r.breachedOpen}</TD><TD className="num text-right">{r.resolvedLast30Days}</TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <motion.ol className="space-y-2" variants={gridParent} initial="hidden" animate="show">
+            {[...(data ?? [])].sort((x, y) => y.resolvedLast30Days - x.resolvedLast30Days).map((r, i) => {
+              const over = !!r.capacity && r.open >= r.capacity;
+              return (
+                <motion.li key={r.userId} variants={gridItem} className="grid items-center gap-3 rounded-2xl bg-muted/50 px-3 py-3 sm:grid-cols-[2rem_minmax(0,14rem)_1fr_auto]">
+                  <span className={`hidden h-8 w-8 place-items-center rounded-full font-display text-sm font-bold sm:grid ${i < 3 ? 'bg-brand text-white shadow-glow' : 'bg-card text-muted-foreground'}`}>{i + 1}</span>
+                  <div className="flex min-w-0 items-center gap-3"><Avatar name={r.fullName} className="h-9 w-9 text-[11px]" /><div className="min-w-0"><p className="truncate font-semibold">{r.fullName}</p><p className="text-xs text-muted-foreground">{r.employeeCode} · {r.role}</p></div></div>
+                  <div>
+                    <div className="mb-1 flex justify-between text-xs"><span className="text-muted-foreground">Open load</span><span className={`display-num ${over ? 'text-breach' : ''}`}>{r.open}{r.capacity ? ` / ${r.capacity}` : ''}</span></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-card"><motion.div initial={{ width: 0 }} animate={{ width: `${(r.open / max) * 100}%` }} transition={{ duration: 0.6 }} className={`h-full rounded-full ${over ? 'bg-breach' : 'bg-brand'}`} /></div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 text-xs sm:w-[21rem] sm:justify-end">
+                    <span className="rounded-full bg-sky/15 px-2 py-1 font-semibold text-sky" title="In progress">{r.inProgress} in progress</span>
+                    <span className="rounded-full bg-warn/15 px-2 py-1 font-semibold text-warn" title="Pending">{r.pending} pending</span>
+                    {r.breachedOpen > 0 && <span className="rounded-full bg-breach/10 px-2 py-1 font-semibold text-breach">{r.breachedOpen} breached</span>}
+                    <span className="rounded-full bg-ok/10 px-2 py-1 font-semibold text-ok" title="Resolved in the last 30 days">{r.resolvedLast30Days} resolved</span>
+                  </div>
+                </motion.li>
+              );
+            })}
+          </motion.ol>
         )}
       </CardContent>
     </Card>
   );
 }
+
+const mins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 function Shifts() {
   const { data, reload } = useApi<Shift[]>('/shifts');
@@ -258,10 +311,26 @@ function Shifts() {
     <Card>
       <CardHeader><div><CardTitle>Shifts</CardTitle><CardDescription>Working schedules assigned to employees</CardDescription></div></CardHeader>
       <CardContent>
-        <Table>
-          <THead><TR><TH>Name</TH><TH>Start</TH><TH>End</TH><TH>Timezone</TH><TH>Status</TH></TR></THead>
-          <TBody>{(data ?? []).map((s) => <TR key={s.id}><TD className="font-medium">{s.name}</TD><TD className="num">{s.startTime.slice(0, 5)}</TD><TD className="num">{s.endTime.slice(0, 5)}</TD><TD>{s.timezone}</TD><TD><Badge tone={s.active ? 'green' : 'neutral'}>{s.active ? 'Active' : 'Inactive'}</Badge></TD></TR>)}</TBody>
-        </Table>
+        <div className="space-y-3">
+          {(data ?? []).map((s) => {
+            const st = mins(s.startTime), en = mins(s.endTime);
+            const segs = en > st ? [[st, en]] : [[st, 1440], [0, en]];
+            return (
+              <div key={s.id} className="rounded-2xl bg-muted/50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <IconTile icon={Clock} tone={en > st ? 'sky' : 'ink'} className="h-9 w-9" />
+                  <div className="min-w-0 flex-1"><p className="font-semibold">{s.name}</p><p className="text-xs text-muted-foreground">{s.timezone}</p></div>
+                  <span className="display-num text-lg">{s.startTime.slice(0, 5)} – {s.endTime.slice(0, 5)}</span>
+                  <Badge tone={s.active ? 'green' : 'neutral'}>{s.active ? 'Active' : 'Inactive'}</Badge>
+                </div>
+                <div className="relative mt-3 h-3 overflow-hidden rounded-full bg-card">
+                  {segs.map(([a, b]) => <div key={a} className="absolute inset-y-0 rounded-full bg-brand" style={{ left: `${(a / 1440) * 100}%`, width: `${((b - a) / 1440) * 100}%` }} />)}
+                </div>
+                <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+              </div>
+            );
+          })}
+        </div>
         <Can permission="USER_WRITE">
           <div className="mt-4 grid gap-2 border-t pt-4 sm:grid-cols-[1fr_8rem_8rem_12rem_auto] sm:items-end">
             <Field label="Shift name" htmlFor="s-name"><Input id="s-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>

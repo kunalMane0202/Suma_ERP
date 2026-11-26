@@ -1,7 +1,9 @@
-import { Plug, Plus, RefreshCw, Trash2, Zap } from 'lucide-react';
+import { Cloud, Inbox, KeyRound, Layers, Plug, Plus, RefreshCw, Trash2, Webhook, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { CardGrid, GridCard, IconTile } from '@/components/layout';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
@@ -13,10 +15,14 @@ import { EmptyState, PageHeader } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
 import { api, errorMessage } from '@/services/api';
-import { dateTime, relative } from '@/utils/format';
+import { dateTime, relative, titleCase } from '@/utils/format';
 
 interface Integration { id: string; name: string; connectorType: string; projectId: string; projectName?: string; baseUrl?: string; authType: string; credentialKeys: string[]; query?: string; fieldMapping?: Record<string, unknown>; syncIntervalMinutes: number; maxRetries: number; enabled: boolean; lastSyncAt?: string; lastStatus?: string; consecutiveFailures: number }
 interface Log { id: string; startedAt: string; status: string; attempt: number; fetched: number; created: number; duplicates: number; failed: number; error?: string }
+const CONNECTOR: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
+  JIRA: { label: 'Jira', icon: Layers, tone: 'sky' }, SALESFORCE: { label: 'Salesforce', icon: Cloud, tone: 'mint' }, REST: { label: 'REST API', icon: Webhook, tone: 'brand' }, EMAIL: { label: 'Email (IMAP)', icon: Inbox, tone: 'amber' },
+};
+const HEALTH: Record<string, string> = { ok: 'bg-ok/10 text-ok', warn: 'bg-warn/15 text-warn', breach: 'bg-breach/10 text-breach', neutral: 'bg-muted text-muted-foreground' };
 const CRED_KEYS: Record<string, string[]> = { NONE: [], BASIC: ['username', 'password'], BEARER: ['token'], OAUTH2: ['token'], API_KEY: ['headerName', 'apiKey'] };
 
 export default function IntegrationsPage() {
@@ -57,27 +63,36 @@ export default function IntegrationsPage() {
       <PageHeader title="Integrations" description="Ingest tickets from Jira, Salesforce, any REST API or a support mailbox. Credentials are encrypted at rest and never shown again after saving."
         actions={<Button onClick={() => open()}><Plus /> New integration</Button>} />
       {(data ?? []).length === 0 ? <Card><EmptyState icon={<Plug />} title="No integrations configured" description="Connect a source system to create tickets automatically. Duplicate external tickets are always skipped." action={<Button onClick={() => open()}><Plus /> New integration</Button>} /></Card> : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {data!.map((i) => (
-            <Card key={i.id}>
-              <CardHeader>
-                <div><CardTitle>{i.name}</CardTitle><CardDescription>{i.connectorType} → {i.projectName} · every {i.syncIntervalMinutes} min · {i.maxRetries} retries</CardDescription></div>
-                <Badge tone={!i.enabled ? 'neutral' : i.lastStatus === 'FAILED' ? 'red' : i.lastStatus === 'PARTIAL' ? 'amber' : 'green'}>{!i.enabled ? 'Disabled' : i.lastStatus ?? 'Not run yet'}</Badge>
-              </CardHeader>
-              <CardContent>
-                <p className="truncate font-mono text-xs text-muted-foreground">{i.baseUrl}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Auth {i.authType}{i.credentialKeys.length ? ` · stored: ${i.credentialKeys.join(', ')}` : ' · no credentials stored'} · last sync {i.lastSyncAt ? relative(i.lastSyncAt) : 'never'}{i.consecutiveFailures ? ` · ${i.consecutiveFailures} consecutive failures` : ''}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+        <CardGrid className="lg:grid-cols-2 xl:grid-cols-2">
+          {data!.map((i) => {
+            const c = CONNECTOR[i.connectorType] ?? CONNECTOR.REST;
+            const health = !i.enabled ? 'neutral' : i.lastStatus === 'FAILED' ? 'breach' : i.lastStatus === 'PARTIAL' ? 'warn' : i.lastStatus ? 'ok' : 'neutral';
+            return (
+              <GridCard key={i.id}>
+                <div className="flex items-start gap-3">
+                  <IconTile icon={c.icon} tone={c.tone} className="h-12 w-12 rounded-2xl" />
+                  <div className="min-w-0 flex-1"><p className="font-display text-[16px] font-semibold">{i.name}</p><p className="text-xs text-muted-foreground">{c.label} → {i.projectName}</p></div>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH[health]}`}>
+                    <span className={`h-2 w-2 rounded-full bg-current ${health === 'ok' ? 'animate-pulse' : ''}`} />{!i.enabled ? 'Disabled' : i.lastStatus ? titleCase(i.lastStatus) : 'Not run yet'}</span>
+                </div>
+                <p className="mt-3 truncate rounded-lg bg-muted px-2.5 py-1.5 font-mono text-xs text-muted-foreground">{i.baseUrl || 'No URL set'}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-muted/60 py-2"><p className="display-num text-lg">{i.syncIntervalMinutes}m</p><p className="text-[11px] text-muted-foreground">interval</p></div>
+                  <div className="rounded-xl bg-muted/60 py-2"><p className="display-num text-lg">{i.maxRetries}</p><p className="text-[11px] text-muted-foreground">retries</p></div>
+                  <div className={`rounded-xl py-2 ${i.consecutiveFailures ? 'bg-breach/10' : 'bg-muted/60'}`}><p className={`display-num text-lg ${i.consecutiveFailures ? 'text-breach' : ''}`}>{i.consecutiveFailures}</p><p className="text-[11px] text-muted-foreground">failures in a row</p></div>
+                </div>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><KeyRound className="h-3 w-3" />{i.authType}{i.credentialKeys.length ? ` · stored: ${i.credentialKeys.join(', ')}` : ' · no credentials stored'} · last sync {i.lastSyncAt ? relative(i.lastSyncAt) : 'never'}</p>
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-3">
                   <Button size="sm" variant="outline" loading={busy === i.id + 'test'} onClick={() => run(i, 'test')}><Zap /> Test connection</Button>
                   <Button size="sm" variant="outline" loading={busy === i.id + 'sync'} onClick={() => run(i, 'sync')}><RefreshCw /> Sync now</Button>
                   <Button size="sm" variant="ghost" onClick={() => setLogsFor(i)}>Sync log</Button>
                   <Button size="sm" variant="ghost" onClick={() => open(i)}>Edit</Button>
                   <Button size="icon" variant="ghost" aria-label="Delete integration" onClick={async () => { if (window.confirm('Delete this integration?')) { await api.delete(`/integrations/${i.id}`); reload(); } }}><Trash2 /></Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </GridCard>
+            );
+          })}
+        </CardGrid>
       )}
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.id ? 'Edit integration' : 'New integration'} className="max-w-2xl"
         footer={<><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button disabled={!edit?.name || !edit?.projectId} onClick={save}>Save integration</Button></>}>

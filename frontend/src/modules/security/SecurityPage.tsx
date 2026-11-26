@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
-import { Ban, Download, LogOut, Plus, Search, Trash2 } from 'lucide-react';
+import { Ban, Download, LogOut, Monitor, Plus, ShieldAlert, ShieldCheck, ShieldX, Shuffle, Smartphone, Trash2 } from 'lucide-react';
+import { FeedItem, IconTile, SearchField } from '@/components/layout';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import { Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
+import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
 import { RadialGauge } from '@/components/viz';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -143,12 +144,11 @@ function Overview() {
 function FilterBar({ f, setF, extra, exportType }: { f: Record<string, string>; setF: (f: Record<string, string>) => void; extra?: React.ReactNode; exportType?: string }) {
   const { can } = useAuth();
   return (
-    <div className="flex flex-wrap items-center gap-2 p-4">
-      <div className="relative w-full sm:w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-8" placeholder="IP address starts with" aria-label="Filter by IP" value={f.ip ?? ''} onChange={(e) => setF({ ...f, ip: e.target.value })} /></div>
+    <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-4">
+      <SearchField label="Filter by IP" placeholder="IP address starts with" value={f.ip ?? ''} onChange={(v) => setF({ ...f, ip: v })} className="sm:w-56" />
       {extra}
-      <Input type="datetime-local" aria-label="From" className="w-52" value={f.fromLocal ?? ''} onChange={(e) => setF({ ...f, fromLocal: e.target.value })} />
-      <Input type="datetime-local" aria-label="To" className="w-52" value={f.toLocal ?? ''} onChange={(e) => setF({ ...f, toLocal: e.target.value })} />
+      <Input type="datetime-local" aria-label="From" className="w-52 rounded-full" value={f.fromLocal ?? ''} onChange={(e) => setF({ ...f, fromLocal: e.target.value })} />
+      <Input type="datetime-local" aria-label="To" className="w-52 rounded-full" value={f.toLocal ?? ''} onChange={(e) => setF({ ...f, toLocal: e.target.value })} />
       <div className="flex-1" />
       {exportType && can('REPORT_EXPORT') && <Button size="sm" variant="outline" onClick={() => download('/security/reports/export', { type: exportType, ...toParams(f) }).catch((e) => toast.error(errorMessage(e)))}><Download /> Export CSV</Button>}
     </div>
@@ -175,8 +175,8 @@ function Logins() {
   return (
     <Card>
       <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType={mode === 'failed' ? 'failed' : 'logins'} extra={<>
-        <Input className="w-44" placeholder="Username" aria-label="Filter by username" value={f.username ?? ''} onChange={(e) => setF({ ...f, username: e.target.value })} />
-        <NativeSelect aria-label="Result" className="w-40" value={mode} onChange={(e) => { setPage(0); setMode(e.target.value as typeof mode); }}>
+        <Input className="w-44 rounded-full" placeholder="Username" aria-label="Filter by username" value={f.username ?? ''} onChange={(e) => setF({ ...f, username: e.target.value })} />
+        <NativeSelect aria-label="Result" className="w-40 rounded-full" value={mode} onChange={(e) => { setPage(0); setMode(e.target.value as typeof mode); }}>
           <option value="all">All attempts</option><option value="failed">Failed only</option><option value="suspicious">Suspicious only</option>
         </NativeSelect></>} />
       {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
@@ -187,9 +187,10 @@ function Logins() {
             <TBody>{data.content.map((l) => (
               <TR key={l.id}>
                 <TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD>
-                <TD>{l.userName ?? <span className="text-muted-foreground">unknown</span>}<p className="text-xs text-muted-foreground">{l.usernameAttempted}</p></TD>
+                <TD><div className="flex items-center gap-3"><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${l.success ? 'bg-ok/10 text-ok' : l.suspicious ? 'bg-breach/10 text-breach' : 'bg-warn/15 text-warn'}`}>{l.success ? <ShieldCheck className="h-4 w-4" /> : l.suspicious ? <ShieldAlert className="h-4 w-4" /> : <ShieldX className="h-4 w-4" />}</span>
+                  <div><p className="font-medium">{l.userName ?? <span className="text-muted-foreground">unknown</span>}</p><p className="text-xs text-muted-foreground">{l.usernameAttempted}</p></div></div></TD>
                 <TD>{l.success ? <Badge tone="green">Success</Badge> : <Badge tone={catTone[l.failureCategory ?? ''] ?? 'red'}>{titleCase(l.failureCategory)}</Badge>}{!l.success && l.attemptCount > 1 && <p className="mt-0.5 text-xs text-muted-foreground">attempt {l.attemptCount}</p>}</TD>
-                <TD className="font-mono text-xs">{l.ipAddress}<span className="ml-1 text-muted-foreground">v{l.ipVersion}</span></TD>
+                <TD><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">{l.ipAddress}</span><span className="ml-1 text-[11px] text-muted-foreground">v{l.ipVersion}</span></TD>
                 <TD className="text-xs">{l.browser} · {l.device}</TD>
                 <TD>{l.suspicious && <Badge tone="red">Suspicious</Badge>}{l.suspiciousReasons && <p className="mt-0.5 text-xs text-muted-foreground">{l.suspiciousReasons.split(',').map(titleCase).join(', ')}</p>}</TD>
               </TR>
@@ -209,7 +210,7 @@ function Anonymous() {
   return (
     <Card>
       <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType="anonymous" extra={
-        <NativeSelect aria-label="Category" className="w-48" value={f.category ?? ''} onChange={(e) => setF({ ...f, category: e.target.value })}>
+        <NativeSelect aria-label="Category" className="w-48 rounded-full" value={f.category ?? ''} onChange={(e) => setF({ ...f, category: e.target.value })}>
           <option value="">All categories</option>{['MISSING_AUTH', 'INVALID_TOKEN', 'EXPIRED_SESSION', 'REVOKED_SESSION', 'ACCESS_DENIED', 'BLOCKED_IP'].map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
         </NativeSelect>} />
       {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
@@ -221,8 +222,8 @@ function Anonymous() {
               <TR key={l.id}>
                 <TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD>
                 <TD><Badge tone={catTone[l.category] ?? 'neutral'}>{titleCase(l.category)}</Badge>{l.username && <p className="mt-0.5 text-xs text-muted-foreground">{l.username}</p>}</TD>
-                <TD className="font-mono text-xs">{l.httpMethod} {l.endpoint} <span className="text-muted-foreground">→ {l.statusCode}</span></TD>
-                <TD className="font-mono text-xs">{l.ipAddress}</TD>
+                <TD className="font-mono text-xs"><span className="mr-1 rounded bg-primary/10 px-1.5 py-0.5 font-semibold text-primary">{l.httpMethod}</span>{l.endpoint} <span className="text-muted-foreground">→ {l.statusCode}</span></TD>
+                <TD><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">{l.ipAddress}</span></TD>
                 <TD className="max-w-[14rem] truncate text-xs text-muted-foreground" title={l.userAgent}>{l.userAgent}</TD>
                 <TD className="font-mono text-[11px] text-muted-foreground">{l.correlationId?.slice(0, 8)}</TD>
               </TR>
@@ -242,20 +243,26 @@ function IpActivity() {
   return (
     <Card>
       <FilterBar f={f} setF={(x) => { setPage(0); setF(x); }} exportType="ip" extra={
-        <NativeSelect aria-label="Activity" className="w-48" value={f.type ?? ''} onChange={(e) => setF({ ...f, type: e.target.value })}>
+        <NativeSelect aria-label="Activity" className="w-48 rounded-full" value={f.type ?? ''} onChange={(e) => setF({ ...f, type: e.target.value })}>
           <option value="">All activity</option>{['LOGIN_SUCCESS', 'LOGIN_FAILURE', 'UNKNOWN_USER', 'ANONYMOUS_ACCESS', 'ACCESS_DENIED', 'IP_CHANGE', 'BLOCKED', 'SUSPICIOUS'].map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
         </NativeSelect>} />
       {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
       {loading && !data ? <TableSkeleton /> : data && (
         <>
-          <Table>
-            <THead><TR><TH>When</TH><TH>IP address</TH><TH>Activity</TH><TH>Details</TH></TR></THead>
-            <TBody>{data.content.map((l) => (
-              <TR key={l.id}><TD className="num whitespace-nowrap text-xs">{dateTime(l.createdAt)}</TD><TD className="font-mono text-xs">{l.ipAddress} <span className="text-muted-foreground">v{l.ipVersion}</span></TD>
-                <TD><Badge tone={l.activityType === 'LOGIN_SUCCESS' ? 'green' : l.activityType === 'IP_CHANGE' ? 'blue' : l.activityType === 'SUSPICIOUS' || l.activityType === 'BLOCKED' ? 'red' : 'amber'}>{titleCase(l.activityType)}</Badge></TD>
-                <TD className="text-xs text-muted-foreground">{l.details}</TD></TR>
-            ))}</TBody>
-          </Table>
+          {data.content.length === 0 ? <EmptyState title="No IP activity matches" /> : (
+            <ul className="space-y-0.5 p-2">
+              {data.content.map((l) => {
+                const t = l.activityType; const bad = t === 'SUSPICIOUS' || t === 'BLOCKED';
+                return (
+                  <FeedItem key={l.id} icon={t === 'LOGIN_SUCCESS' ? ShieldCheck : t === 'IP_CHANGE' ? Shuffle : bad ? ShieldAlert : ShieldX}
+                    tone={t === 'LOGIN_SUCCESS' ? 'bg-ok/10 text-ok' : t === 'IP_CHANGE' ? 'bg-sky/15 text-sky' : bad ? 'bg-breach/10 text-breach' : 'bg-warn/15 text-warn'}
+                    title={<span className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">{l.ipAddress}</span><span className="text-[11px] text-muted-foreground">IPv{l.ipVersion}</span>
+                      <Badge tone={t === 'LOGIN_SUCCESS' ? 'green' : t === 'IP_CHANGE' ? 'blue' : bad ? 'red' : 'amber'}>{titleCase(t)}</Badge></span>}
+                    meta={l.details} right={<span className="display-num whitespace-nowrap text-xs text-muted-foreground">{dateTime(l.createdAt)}</span>} />
+                );
+              })}
+            </ul>
+          )}
           <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
         </>
       )}
@@ -278,8 +285,8 @@ function Sessions() {
   };
   return (
     <Card>
-      <div className="flex items-center gap-2 p-4">
-        <NativeSelect aria-label="Session status" className="w-44" value={status} onChange={(e) => setStatus(e.target.value)}>
+      <div className="flex items-center gap-2 border-b border-border/60 p-4">
+        <NativeSelect aria-label="Session status" className="w-44 rounded-full" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="ACTIVE">Active</option><option value="TERMINATED">Terminated</option><option value="EXPIRED">Expired</option><option value="LOGGED_OUT">Signed out</option>
         </NativeSelect>
       </div>
@@ -289,10 +296,10 @@ function Sessions() {
           <THead><TR><TH>User</TH><TH>Signed in</TH><TH>Last seen</TH><TH>IP address</TH><TH>Device</TH><TH /></TR></THead>
           <TBody>{data.content.map((s) => (
             <TR key={s.id}>
-              <TD><p className="font-medium">{s.userName}{s.id === user?.sessionId && <Badge tone="blue" className="ml-2">This session</Badge>}</p><p className="text-xs text-muted-foreground">{s.employeeCode} · {s.role}</p></TD>
+              <TD><div className="flex items-center gap-3"><Avatar name={s.userName ?? "?"} className="h-9 w-9 text-[11px]" /><div><p className="font-semibold">{s.userName}{s.id === user?.sessionId && <Badge tone="blue" className="ml-2">This session</Badge>}</p><p className="text-xs text-muted-foreground">{s.employeeCode} · {s.role}</p></div></div></TD>
               <TD className="num text-xs">{dateTime(s.createdAt)}</TD><TD className="text-xs">{relative(s.lastSeenAt)}</TD>
-              <TD className="font-mono text-xs">{s.ipAddress}{s.ipChanged && <span className="block text-warn">now {s.lastIp}</span>}</TD>
-              <TD className="text-xs">{s.browser} · {s.device}{s.endedReason && <span className="block text-muted-foreground">{s.endedReason}</span>}</TD>
+              <TD><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">{s.ipAddress}</span>{s.ipChanged && <span className="mt-1 block font-mono text-[11px] text-warn">now {s.lastIp}</span>}</TD>
+              <TD className="text-xs"><span className="inline-flex items-center gap-1.5">{/mobile|phone|android|ios/i.test(s.device ?? '') ? <Smartphone className="h-3.5 w-3.5 text-muted-foreground" /> : <Monitor className="h-3.5 w-3.5 text-muted-foreground" />}{s.browser} · {s.device}</span>{s.endedReason && <span className="block text-muted-foreground">{s.endedReason}</span>}</TD>
               <TD className="text-right">{s.status === 'ACTIVE' && s.id !== user?.sessionId && <Can permission="SECURITY_MANAGE"><Button size="sm" variant="outline" onClick={() => setTarget(s)}><LogOut /> Terminate</Button></Can>}</TD>
             </TR>
           ))}</TBody>
@@ -321,17 +328,20 @@ function Rules() {
         <Can permission="SECURITY_MANAGE"><Button size="sm" onClick={() => setForm({ cidr: '', ruleType: 'DENY', description: '' })}><Plus /> Add rule</Button></Can>
       </CardHeader>
       <CardContent className="px-0">
-        {allowCount > 0 && <p className="mx-5 mb-3 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">Allow-list mode is on: {allowCount} allow rule(s) active.</p>}
+        {allowCount > 0 && <p className="mx-5 mb-3 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">Allow-list mode is on: {allowCount} allow rule(s) active.</p>}
         {(data ?? []).length === 0 ? <EmptyState icon={<Ban />} title="No IP rules" description="All addresses can reach the sign-in page." /> : (
-          <Table>
-            <THead><TR><TH>Address or range</TH><TH>Type</TH><TH>Description</TH><TH>Added</TH><TH>Active</TH><TH /></TR></THead>
-            <TBody>{data!.map((r) => (
-              <TR key={r.id}><TD className="font-mono text-xs">{r.cidr}</TD><TD><Badge tone={r.ruleType === 'DENY' ? 'red' : 'green'}>{r.ruleType === 'DENY' ? 'Deny' : 'Allow'}</Badge></TD><TD className="text-sm">{r.description}</TD>
-                <TD className="text-xs">{dateTime(r.createdAt)}</TD>
-                <TD><Can permission="SECURITY_MANAGE" fallback={r.active ? 'Yes' : 'No'}><Switch checked={r.active} aria-label="Rule active" onCheckedChange={async (v) => { await api.patch(`/security/ip-rules/${r.id}`, { active: v }); reload(); }} /></Can></TD>
-                <TD className="text-right"><Can permission="SECURITY_MANAGE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/security/ip-rules/${r.id}`); reload(); }}><Trash2 /></Button></Can></TD></TR>
-            ))}</TBody>
-          </Table>
+          <div className="grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-3">{data!.map((r) => (
+            <div key={r.id} className={`relative overflow-hidden rounded-2xl p-4 ${r.ruleType === 'DENY' ? 'bg-breach/5 ring-1 ring-breach/20' : 'bg-ok/5 ring-1 ring-ok/20'} ${r.active ? '' : 'opacity-60'}`}>
+              <div className="flex items-start gap-3">
+                <IconTile icon={r.ruleType === 'DENY' ? Ban : ShieldCheck} tone={r.ruleType === 'DENY' ? 'coral' : 'mint'} />
+                <div className="min-w-0 flex-1"><p className="truncate font-mono text-sm font-semibold">{r.cidr}</p><Badge tone={r.ruleType === 'DENY' ? 'red' : 'green'}>{r.ruleType === 'DENY' ? 'Deny' : 'Allow'}</Badge></div>
+                <Can permission="SECURITY_MANAGE" fallback={<span className="text-xs">{r.active ? 'Active' : 'Inactive'}</span>}><Switch checked={r.active} aria-label="Rule active" onCheckedChange={async (v) => { await api.patch(`/security/ip-rules/${r.id}`, { active: v }); reload(); }} /></Can>
+              </div>
+              {r.description && <p className="mt-3 text-sm">{r.description}</p>}
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>Added {dateTime(r.createdAt)}</span>
+                <Can permission="SECURITY_MANAGE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/security/ip-rules/${r.id}`); reload(); }}><Trash2 /></Button></Can></div>
+            </div>
+          ))}</div>
         )}
       </CardContent>
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)} title="Add IP rule" description="IPv4 or IPv6 address or CIDR range, e.g. 203.0.113.0/24 or 2001:db8::/32."

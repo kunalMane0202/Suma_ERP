@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, RotateCw, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Coffee, FileText, Loader, Mail as MailIcon, MailCheck, MailX, Moon, Paperclip, Plus, RotateCw, SlidersHorizontal, Trash2, XCircle } from 'lucide-react';
+import { FeedItem, IconTile } from '@/components/layout';
 import { Fragment, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -12,7 +13,6 @@ import { Field } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmptyState, PageHeader, Pagination } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
@@ -88,35 +88,35 @@ function AttendanceSettingsTab() {
       <CardHeader className="flex-wrap">
         <div><CardTitle>Attendance & monitoring policy</CardTitle><CardDescription>Break limits are not preset: leave them empty if your company has no limit. A project override replaces the organisation default for that project.</CardDescription></div>
         <div className="flex items-center gap-2">
-          <NativeSelect aria-label="Scope" className="w-56" value={scope} onChange={(e) => setScope(e.target.value)}>
+          <NativeSelect aria-label="Scope" className="w-56 rounded-full" value={scope} onChange={(e) => setScope(e.target.value)}>
             <option value="">Organisation default</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}{all.data?.some((s) => s.projectId === p.id) ? ' (override)' : ''}</option>)}
           </NativeSelect>
           {isOverride && <Button variant="outline" size="sm" onClick={async () => { await api.delete(`/attendance/settings/projects/${scope}`); toast.success('Override removed'); all.reload(); }}>Remove override</Button>}
         </div>
       </CardHeader>
       <CardContent>
-        {scope && !isOverride && <p className="mb-4 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">This project uses the organisation default. Saving creates a project-specific override.</p>}
-        <form onSubmit={handleSubmit(submit)} noValidate className="space-y-6">
-          <section><h3 className="mb-3 text-sm font-semibold">Working time</h3>
+        {scope && !isOverride && <p className="mb-4 rounded-xl bg-primary/10 px-3 py-2 text-sm text-muted-foreground">This project uses the organisation default. Saving creates a project-specific override.</p>}
+        <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
+          <section className="rounded-2xl bg-muted/40 p-4"><h3 className="mb-3 flex items-center gap-2.5 text-sm font-semibold"><IconTile icon={Clock} tone="sky" className="h-8 w-8 rounded-lg" />Working time</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {num('defaultWorkHours', 'Default work hours per day', 'Days below this are flagged as short', 'Not set')}
               <Field label="Reporting timezone" htmlFor="as-tz" hint="Day boundaries and monthly report schedule"><Input id="as-tz" {...register('reportingTimezone')} /></Field>
               {num('missingLogoutAfterHours', 'Close sessions open longer than (hours)')}
               {num('heartbeatTimeoutMinutes', 'Disconnect after no heartbeat for (minutes)', 'Used to detect closed browsers')}
             </div></section>
-          <section><h3 className="mb-3 text-sm font-semibold">Breaks</h3>
+          <section className="rounded-2xl bg-muted/40 p-4"><h3 className="mb-3 flex items-center gap-2.5 text-sm font-semibold"><IconTile icon={Coffee} tone="amber" className="h-8 w-8 rounded-lg" />Breaks</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {num('maxBreakMinutes', 'Maximum minutes per break', undefined, 'No limit')}
               {num('maxDailyBreakMinutes', 'Maximum break minutes per day', undefined, 'No limit')}
               {num('maxBreaksPerDay', 'Maximum breaks per day', undefined, 'No limit')}
               {num('breakReminderIntervalMinutes', 'Remind every (minutes) during a break', undefined, 'No reminders')}
             </div></section>
-          <section><h3 className="mb-3 text-sm font-semibold">Inactivity</h3>
+          <section className="rounded-2xl bg-muted/40 p-4"><h3 className="mb-3 flex items-center gap-2.5 text-sm font-semibold"><IconTile icon={Moon} tone="coral" className="h-8 w-8 rounded-lg" />Inactivity</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {num('idleThresholdMinutes', 'Ask for status after inactivity of (minutes)', 'Default 20. In-app activity only.')}
               <label className="flex items-center gap-2 self-end pb-2 text-sm"><Switch checked={!!watch('notifyTeamLeaderOnIdle')} onCheckedChange={(v) => setValue('notifyTeamLeaderOnIdle', v)} /> Notify team leader when someone is inactive</label>
             </div></section>
-          <section><h3 className="mb-3 text-sm font-semibold">Monthly Project Lead report</h3>
+          <section className="rounded-2xl bg-muted/40 p-4"><h3 className="mb-3 flex items-center gap-2.5 text-sm font-semibold"><IconTile icon={MailIcon} tone="mint" className="h-8 w-8 rounded-lg" />Monthly Project Lead report</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="flex items-center gap-2 self-end pb-2 text-sm"><Switch checked={!!watch('monthlyReportEnabled')} onCheckedChange={(v) => setValue('monthlyReportEnabled', v)} /> Send automatically on the 1st</label>
               {num('monthlyReportHour', 'Send at hour (0–23, reporting timezone)')}
@@ -150,14 +150,18 @@ function BreakPolicies() {
         <Button size="sm" onClick={() => setEdit({ name: '', active: true })}><Plus /> Add policy</Button></CardHeader>
       <CardContent className="px-0">
         {(data ?? []).length === 0 ? <EmptyState title="No break policies" description="Only the general limits from attendance settings apply." /> : (
-          <Table>
-            <THead><TR><TH>Policy</TH><TH>Project</TH><TH>Break type</TH><TH>Max minutes</TH><TH>Max per day</TH><TH>Reminder after</TH><TH>Active</TH><TH /></TR></THead>
-            <TBody>{data!.map((p) => (
-              <TR key={p.id}><TD className="font-medium">{p.name}</TD><TD>{lk.projects.find((x) => x.id === p.projectId)?.name ?? 'All'}</TD><TD>{p.breakCategory ? titleCase(p.breakCategory) : 'Any'}</TD>
-                <TD className="num">{p.maxDurationMinutes ?? '—'}</TD><TD className="num">{p.maxPerDay ?? '—'}</TD><TD className="num">{p.reminderAfterMinutes ?? '—'}</TD><TD>{p.active ? 'Yes' : 'No'}</TD>
-                <TD className="whitespace-nowrap text-right"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button><Button variant="ghost" size="icon" aria-label="Delete policy" onClick={async () => { await api.delete(`/attendance/policies/${p.id}`); reload(); }}><Trash2 /></Button></TD></TR>
-            ))}</TBody>
-          </Table>
+          <div className="grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-3">{data!.map((p) => (
+            <div key={p.id} className={`rounded-2xl bg-muted/50 p-4 ${p.active ? '' : 'opacity-60'}`}>
+              <div className="flex items-start gap-3"><IconTile icon={Coffee} tone="amber" />
+                <div className="min-w-0 flex-1"><p className="font-semibold">{p.name}</p><p className="text-xs text-muted-foreground">{lk.projects.find((x) => x.id === p.projectId)?.name ?? 'All projects'} · {p.breakCategory ? titleCase(p.breakCategory) : 'Any type'}</p></div>
+                <Badge tone={p.active ? 'green' : 'neutral'}>{p.active ? 'Active' : 'Off'}</Badge></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {([['Max min', p.maxDurationMinutes], ['Per day', p.maxPerDay], ['Remind', p.reminderAfterMinutes]] as [string, number | undefined][]).map(([k, v]) => (
+                  <div key={k} className="rounded-xl bg-card py-2"><p className="display-num text-lg">{v ?? '—'}</p><p className="text-[11px] text-muted-foreground">{k}</p></div>))}
+              </div>
+              <div className="mt-2 flex justify-end"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button><Button variant="ghost" size="icon" aria-label="Delete policy" onClick={async () => { await api.delete(`/attendance/policies/${p.id}`); reload(); }}><Trash2 /></Button></div>
+            </div>
+          ))}</div>
         )}
       </CardContent>
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.id ? 'Edit break policy' : 'Add break policy'}
@@ -193,10 +197,10 @@ function SystemSettings() {
       <div className="space-y-4 xl:col-span-2">
         {groups.map((g) => (
           <Card key={g}>
-            <CardHeader><CardTitle>{titleCase(g)}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader><div className="flex items-center gap-3"><IconTile icon={SlidersHorizontal} tone="soft" /><CardTitle>{titleCase(g)}</CardTitle></div></CardHeader>
+            <CardContent className="space-y-2">
               {data!.filter((s) => s.category === g).map((s) => (
-                <div key={s.key} className="grid items-end gap-2 sm:grid-cols-[1fr_14rem_auto]">
+                <div key={s.key} className="grid items-center gap-2 rounded-xl bg-muted/40 p-3 sm:grid-cols-[1fr_14rem_auto]">
                   <div><p className="text-sm font-medium">{s.description}</p><p className="font-mono text-xs text-muted-foreground">{s.key}</p></div>
                   <Input aria-label={s.description ?? s.key} type={s.valueType === 'NUMBER' ? 'number' : 'text'} value={values[s.key] ?? ''} onChange={(e) => setValues({ ...values, [s.key]: e.target.value })} />
                   <Button size="sm" variant="outline" disabled={values[s.key] === (s.value ?? '')} onClick={() => save(s.key)}>Save</Button>
@@ -226,7 +230,7 @@ function ConfigRow({ kind, item, onSaved }: { kind: 'statuses' | 'priorities'; i
   const dirty = label !== item.label || color !== item.color;
   return (
     <div className="flex items-center gap-2">
-      <input type="color" aria-label={`${item.code} colour`} value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border bg-transparent" />
+      <input type="color" aria-label={`${item.code} colour`} value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded-lg border-0 bg-transparent" />
       <Input aria-label={`${item.code} label`} className="h-8" value={label} onChange={(e) => setLabel(e.target.value)} />
       <Button size="sm" variant="ghost" disabled={!dirty} onClick={async () => { try { await api.put(`/settings/${kind}/${item.code}`, { label, color }); toast.success('Saved'); onSaved(); } catch (e) { toast.error(errorMessage(e)); } }}>Save</Button>
     </div>
@@ -238,10 +242,15 @@ function Templates() {
   const [edit, setEdit] = useState<{ code: string; subject: string; body: string } | null>(null);
   return (
     <Card>
-      <CardContent className="px-0 pt-2">
-        <Table><THead><TR><TH>Template</TH><TH>Subject</TH><TH /></TR></THead>
-          <TBody>{(data ?? []).map((t) => <TR key={t.code}><TD><p className="font-medium">{t.description}</p><p className="font-mono text-xs text-muted-foreground">{t.code}</p></TD><TD className="text-sm">{t.subject}</TD>
-            <TD className="text-right"><Button variant="ghost" size="sm" onClick={() => setEdit({ code: t.code, subject: t.subject, body: t.body.replace(/\\n/g, '\n') })}>Edit</Button></TD></TR>)}</TBody></Table>
+      <CardHeader><div><CardTitle>Email templates</CardTitle><CardDescription>Subjects and bodies for every automatic email</CardDescription></div></CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {(data ?? []).map((t) => (
+          <div key={t.code} className="flex flex-col rounded-2xl bg-muted/50 p-4">
+            <div className="flex items-start gap-3"><IconTile icon={FileText} tone="sky" /><div className="min-w-0"><p className="font-semibold">{t.description}</p><p className="truncate font-mono text-[11px] text-muted-foreground">{t.code}</p></div></div>
+            <p className="mt-3 rounded-xl bg-card px-3 py-2 text-sm"><span className="text-xs text-muted-foreground">Subject · </span>{t.subject}</p>
+            <div className="mt-auto flex justify-end pt-2"><Button variant="ghost" size="sm" onClick={() => setEdit({ code: t.code, subject: t.subject, body: t.body.replace(/\\n/g, '\n') })}>Edit</Button></div>
+          </div>
+        ))}
       </CardContent>
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title="Edit email template" description="Placeholders like {{name}} are replaced when the email is sent." className="max-w-2xl"
         footer={<><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button onClick={async () => { try { await api.put(`/settings/email-templates/${edit!.code}`, { subject: edit!.subject, body: edit!.body }); toast.success('Template saved'); setEdit(null); reload(); } catch (e) { toast.error(errorMessage(e)); } }}>Save template</Button></>}>
@@ -254,6 +263,8 @@ function Templates() {
 
 interface Role { code: string; name: string; description?: string; permissions: string[] }
 interface Perm { code: string; module: string; description?: string }
+
+const ROLE_CHIP = ['bg-navy text-white', 'bg-primary/10 text-primary', 'bg-sky/15 text-sky', 'bg-ok/10 text-ok', 'bg-warn/15 text-warn', 'bg-idle/15 text-idle'];
 
 function Roles() {
   const roles = useApi<Role[]>('/roles');
@@ -273,16 +284,17 @@ function Roles() {
       <CardContent className="px-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-card"><tr className="border-b"><th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Permission</th>
-              {roles.data.map((r) => <th key={r.code} className="px-2 py-2 text-center text-xs font-medium">{r.name}{dirty(r) && <Button size="sm" className="mt-1 h-6 w-full text-[11px]" onClick={() => save(r)}>Save</Button>}</th>)}</tr></thead>
+            <thead className="sticky top-0 z-10 bg-card"><tr><th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Permission</th>
+              {roles.data.map((r, i) => <th key={r.code} className="px-2 py-3 text-center text-xs font-medium"><span className={`inline-block rounded-full px-2.5 py-1 font-semibold ${ROLE_CHIP[i % ROLE_CHIP.length]}`}>{r.name}</span>{dirty(r) && <Button size="sm" className="mt-1 h-6 w-full text-[11px]" onClick={() => save(r)}>Save</Button>}</th>)}</tr></thead>
             <tbody>
               {modules.map((m) => (
                 <Fragment key={m}>
-                  <tr className="bg-muted/50"><td colSpan={roles.data!.length + 1} className="px-4 py-1.5 text-xs font-semibold">{titleCase(m)}</td></tr>
+                  <tr><td colSpan={roles.data!.length + 1} className="px-4 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-primary">{titleCase(m)}</td></tr>
                   {perms.data!.filter((p) => p.module === m).map((p) => (
-                    <tr key={p.code} className="border-b">
+                    <tr key={p.code} className="transition-colors hover:bg-accent/50">
                       <td className="px-4 py-1.5"><p>{p.description}</p><p className="font-mono text-[11px] text-muted-foreground">{p.code}</p></td>
-                      {roles.data!.map((r) => <td key={r.code} className="text-center"><input type="checkbox" aria-label={`${r.name}: ${p.code}`} checked={draft[r.code]?.has(p.code) ?? false} onChange={() => toggle(r.code, p.code)} /></td>)}
+                      {roles.data!.map((r) => <td key={r.code} className="text-center"><label className="inline-grid cursor-pointer place-items-center"><input type="checkbox" className="peer sr-only" aria-label={`${r.name}: ${p.code}`} checked={draft[r.code]?.has(p.code) ?? false} onChange={() => toggle(r.code, p.code)} />
+                        <span className="grid h-6 w-6 place-items-center rounded-lg bg-muted text-transparent transition peer-checked:bg-brand peer-checked:text-white peer-checked:shadow-glow peer-focus-visible:ring-2 peer-focus-visible:ring-ring"><Check className="h-3.5 w-3.5" /></span></label></td>)}
                     </tr>
                   ))}
                 </Fragment>
@@ -302,10 +314,12 @@ function Jobs() {
       <CardHeader><div><CardTitle>Scheduled job history</CardTitle><CardDescription>Last 100 runs. Each job holds a database lock so it never runs twice at the same time.</CardDescription></div><Button size="sm" variant="ghost" onClick={reload}><RotateCw /> Refresh</Button></CardHeader>
       <CardContent className="px-0">
         {(data ?? []).length === 0 ? <EmptyState title="No job runs yet" description="Jobs start within a few minutes of server start." /> : (
-          <Table><THead><TR><TH>Job</TH><TH>Started</TH><TH>Duration</TH><TH>Status</TH><TH className="text-right">Items</TH><TH>Message</TH></TR></THead>
-            <TBody>{data!.map((j, i) => <TR key={i}><TD className="font-mono text-xs">{j.jobName}</TD><TD className="text-xs">{dateTime(j.startedAt)}</TD>
-              <TD className="num text-xs">{j.finishedAt ? `${((new Date(j.finishedAt).getTime() - new Date(j.startedAt).getTime()) / 1000).toFixed(1)}s` : '—'}</TD>
-              <TD><Badge tone={j.status === 'SUCCESS' ? 'green' : j.status === 'FAILED' ? 'red' : 'blue'}>{titleCase(j.status)}</Badge></TD><TD className="num text-right">{j.itemsProcessed}</TD><TD className="max-w-xs truncate text-xs text-muted-foreground">{j.message}</TD></TR>)}</TBody></Table>
+          <ul className="space-y-0.5 px-2">{data!.map((j, i) => (
+            <FeedItem key={i} icon={j.status === 'SUCCESS' ? CheckCircle2 : j.status === 'FAILED' ? XCircle : Loader} tone={j.status === 'SUCCESS' ? 'bg-ok/10 text-ok' : j.status === 'FAILED' ? 'bg-breach/10 text-breach' : 'bg-sky/15 text-sky'}
+              title={<span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-semibold">{j.jobName}</span><Badge tone={j.status === 'SUCCESS' ? 'green' : j.status === 'FAILED' ? 'red' : 'blue'}>{titleCase(j.status)}</Badge></span>}
+              meta={<>{j.itemsProcessed} items · {j.finishedAt ? `${((new Date(j.finishedAt).getTime() - new Date(j.startedAt).getTime()) / 1000).toFixed(1)}s` : 'running'}{j.message ? ` · ${j.message}` : ''}</>}
+              right={<span className="display-num whitespace-nowrap text-xs text-muted-foreground">{dateTime(j.startedAt)}</span>} />
+          ))}</ul>
         )}
       </CardContent>
     </Card>
@@ -323,11 +337,13 @@ function EmailLog() {
       <CardContent className="px-0">
         {(data?.content ?? []).length === 0 ? <EmptyState title="No emails queued yet" /> : (
           <>
-            <Table><THead><TR><TH>Created</TH><TH>Recipient</TH><TH>Subject</TH><TH>Status</TH><TH>Attempts</TH><TH /></TR></THead>
-              <TBody>{data!.content.map((m) => <TR key={m.id}><TD className="text-xs">{dateTime(m.createdAt)}</TD><TD className="text-xs">{m.recipient}</TD><TD className="text-sm">{m.subject}{m.attachmentName && <span className="block text-xs text-muted-foreground">📎 {m.attachmentName}</span>}</TD>
-                <TD><Badge tone={m.status === 'SENT' ? 'green' : m.status === 'FAILED' ? 'red' : 'amber'}>{titleCase(m.status)}</Badge>{m.lastError && <p className="max-w-xs truncate text-xs text-muted-foreground" title={m.lastError}>{m.lastError}</p>}</TD>
-                <TD className="num text-xs">{m.attempts} / {m.maxAttempts}</TD>
-                <TD className="text-right">{m.status === 'FAILED' && <Button size="sm" variant="outline" onClick={async () => { await api.post(`/notifications/email-log/${m.id}/retry`); toast.success('Queued for retry'); reload(); }}>Retry</Button>}</TD></TR>)}</TBody></Table>
+            <ul className="space-y-0.5 px-2">{data!.content.map((m) => (
+              <FeedItem key={m.id} icon={m.status === 'SENT' ? MailCheck : m.status === 'FAILED' ? MailX : MailIcon} tone={m.status === 'SENT' ? 'bg-ok/10 text-ok' : m.status === 'FAILED' ? 'bg-breach/10 text-breach' : 'bg-warn/15 text-warn'}
+                title={<><span className="font-semibold">{m.subject}</span>{m.attachmentName && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]"><Paperclip className="h-3 w-3" />{m.attachmentName}</span>}</>}
+                meta={<>{m.recipient} · {dateTime(m.createdAt)} · attempt {m.attempts} of {m.maxAttempts}{m.lastError ? ` · ${m.lastError}` : ''}</>}
+                right={<div className="flex items-center gap-2"><Badge tone={m.status === 'SENT' ? 'green' : m.status === 'FAILED' ? 'red' : 'amber'}>{titleCase(m.status)}</Badge>
+                  {m.status === 'FAILED' && <Button size="sm" variant="outline" onClick={async () => { await api.post(`/notifications/email-log/${m.id}/retry`); toast.success('Queued for retry'); reload(); }}>Retry</Button>}</div>} />
+            ))}</ul>
             <Pagination page={data!.page} totalPages={data!.totalPages} total={data!.totalElements} onPage={setPage} />
           </>
         )}
