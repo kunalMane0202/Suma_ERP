@@ -34,7 +34,7 @@ export default function ClientsPage() {
       <PageHeader title="Clients" description="Organisations you support, their contacts, account managers and projects."
         actions={<Can permission="CLIENT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add client</Button></Can>} />
       <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />}>
-        <SearchField label="Search clients" placeholder="Search name or code" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        <SearchField label="Search clients" placeholder="Search name or code…" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
         <NativeSelect aria-label="Status" className="w-36 rounded-full" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></NativeSelect>
       </FilterBar>
       {error && <ErrorState message={error} onRetry={reload} />}

@@ -44,7 +44,7 @@ export default function KnowledgePage() {
         actions={<Can permission="KB_WRITE"><Button onClick={() => setEdit({ articleType: 'SOP', status: 'DRAFT' })}><Plus /> New article</Button></Can>} />
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative w-full sm:w-96"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search, e.g. vpn disconnect" aria-label="Search knowledge base" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          <Input className="pl-8" placeholder="Search, e.g. vpn disconnect…" aria-label="Search knowledge base" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <NativeSelect aria-label="Type" className="w-44" value={type} onChange={(e) => setType(e.target.value)}><option value="">All types</option>{['SOP', 'TROUBLESHOOTING', 'FAQ', 'RESOLUTION'].map((t) => <option key={t} value={t}>{t === 'SOP' ? 'SOP' : titleCase(t)}</option>)}</NativeSelect>
         <NativeSelect aria-label="Category" className="w-52" value={cat} onChange={(e) => setCat(e.target.value)}><option value="">All categories</option>{(cats.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>
       </div>

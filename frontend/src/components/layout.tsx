@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
@@ -108,10 +109,17 @@ export function CardGrid({ children, className }: { children: ReactNode; classNa
   return <motion.div className={cn('grid gap-4 sm:grid-cols-2 xl:grid-cols-3', className)} variants={gridParent} initial="hidden" animate="show">{children}</motion.div>;
 }
 
-export function GridCard({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+/** Card in a grid. With `to`, the whole card is a real link (keyboard, Cmd/Ctrl+click); inner links and buttons stay clickable. */
+export function GridCard({ children, className, to, label }: { children: ReactNode; className?: string; to?: string; label?: string }) {
   return (
-    <motion.div variants={gridItem} whileHover={{ y: -4 }} onClick={onClick} className={cn('glass flex flex-col p-5 transition-shadow hover:shadow-lift', onClick && 'cursor-pointer', className)}>
-      {children}
+    <motion.div variants={gridItem} whileHover={{ y: -4 }}
+      className={cn('glass relative flex flex-col p-5 transition-shadow hover:shadow-lift', to && 'focus-within:ring-2 focus-within:ring-ring', className)}>
+      {to ? (
+        <>
+          <Link to={to} aria-label={label} className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none" />
+          <div className="pointer-events-none relative z-[1] flex flex-1 flex-col [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{children}</div>
+        </>
+      ) : children}
     </motion.div>
   );
 }

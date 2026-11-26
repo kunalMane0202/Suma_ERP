@@ -14,11 +14,11 @@ import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
-import { RadialGauge } from '@/components/viz';
+import { ChartLegend, RadialGauge } from '@/components/viz';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, download, errorMessage } from '@/services/api';
-import { CHART, tooltipStyle } from '@/utils/chart';
+import { CHART, SERIES, tooltipStyle } from '@/utils/chart';
 import { dateTime, relative, titleCase } from '@/utils/format';
 import type { Page } from '@/types/api';
 
@@ -101,7 +101,7 @@ function Overview() {
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <CardHeader><div><CardTitle>Sign-in attempts</CardTitle><CardDescription>Successful and failed over time</CardDescription></div></CardHeader>
+          <CardHeader><div><CardTitle>Sign-in attempts</CardTitle><CardDescription>Successful and failed over time</CardDescription></div><ChartLegend items={[[SERIES.resolved, 'Successful'], [SERIES.breached, 'Failed']]} /></CardHeader>
           <CardContent className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={d.trend.map((t) => ({ ...t, label: new Date(t.bucket).toLocaleString(undefined, hours <= 48 ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric' }) }))} margin={{ left: -20, right: 8 }}>
@@ -109,8 +109,8 @@ function Overview() {
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} minTickGap={20} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                 <RTooltip {...tooltipStyle} />
-                <Area type="monotone" dataKey="success" name="Successful" stroke={CHART.ok} fill={CHART.ok} fillOpacity={0.12} strokeWidth={2} />
-                <Area type="monotone" dataKey="failed" name="Failed" stroke={CHART.breach} fill={CHART.breach} fillOpacity={0.1} strokeWidth={2} />
+                <Area type="monotone" dataKey="success" name="Successful" stroke={SERIES.resolved} fill={SERIES.resolved} fillOpacity={0.12} strokeWidth={2} />
+                <Area type="monotone" dataKey="failed" name="Failed" stroke={SERIES.breached} fill={SERIES.breached} fillOpacity={0.1} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -145,7 +145,7 @@ function FilterBar({ f, setF, extra, exportType }: { f: Record<string, string>; 
   const { can } = useAuth();
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-4">
-      <SearchField label="Filter by IP" placeholder="IP address starts with" value={f.ip ?? ''} onChange={(v) => setF({ ...f, ip: v })} className="sm:w-56" />
+      <SearchField label="Filter by IP" placeholder="IP address starts with…" value={f.ip ?? ''} onChange={(v) => setF({ ...f, ip: v })} className="sm:w-56" />
       {extra}
       <Input type="datetime-local" aria-label="From" className="w-52 rounded-full" value={f.fromLocal ?? ''} onChange={(e) => setF({ ...f, fromLocal: e.target.value })} />
       <Input type="datetime-local" aria-label="To" className="w-52 rounded-full" value={f.toLocal ?? ''} onChange={(e) => setF({ ...f, toLocal: e.target.value })} />
@@ -339,7 +339,7 @@ function Rules() {
               </div>
               {r.description && <p className="mt-3 text-sm">{r.description}</p>}
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>Added {dateTime(r.createdAt)}</span>
-                <Can permission="SECURITY_MANAGE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/security/ip-rules/${r.id}`); reload(); }}><Trash2 /></Button></Can></div>
+                <Can permission="SECURITY_MANAGE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { if (!window.confirm(`Delete the ${r.ruleType === 'DENY' ? 'deny' : 'allow'} rule for ${r.cidr}?`)) return; await api.delete(`/security/ip-rules/${r.id}`); reload(); }}><Trash2 /></Button></Can></div>
             </div>
           ))}</div>
         )}

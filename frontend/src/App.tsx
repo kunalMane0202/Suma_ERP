@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppShell } from '@/layouts/AppShell';
-import { LoginPage } from '@/modules/auth/LoginPage';
+const LoginPage = lazy(() => import('@/modules/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Me } from '@/types/api';
 

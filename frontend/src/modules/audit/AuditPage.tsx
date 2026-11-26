@@ -19,8 +19,8 @@ export default function AuditPage() {
     <>
       <PageHeader title="Audit trail" description="Every administrative and security-relevant change, with who made it, from where and when." />
       <FilterBar>
-        <SearchField label="Action contains" placeholder="Action, e.g. SESSION" value={action} onChange={(v) => { setPage(0); setAction(v); }} className="sm:w-64" />
-        <Input className="w-48 rounded-full" aria-label="Entity type" placeholder="Entity, e.g. Project" value={entityType} onChange={(e) => { setPage(0); setEntityType(e.target.value); }} />
+        <SearchField label="Action contains" placeholder="Action, e.g. SESSION…" value={action} onChange={(v) => { setPage(0); setAction(v); }} className="sm:w-64" />
+        <Input className="w-48 rounded-full" aria-label="Entity type" placeholder="Entity, e.g. Project…" value={entityType} onChange={(e) => { setPage(0); setEntityType(e.target.value); }} />
       </FilterBar>
       {error && <ErrorState message={error} onRetry={reload} />}
       {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.content.length === 0 ? <Card><EmptyState title="No audit entries match" /></Card> : (

@@ -25,7 +25,7 @@ function Sidebar({ onNavigate, collapsed = false, onToggle }: { onNavigate?: () 
   return (
     <nav aria-label="Main" className="glass flex h-full flex-col overflow-hidden">
       <div className={cn('flex h-[72px] items-center gap-3 px-5', collapsed && 'justify-center px-0')}>
-        <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0 rounded-[10px] shadow-glow" />
+        <img src="/favicon.svg" alt="" width={36} height={36} className="h-9 w-9 shrink-0 rounded-[10px] shadow-glow" />
         {!collapsed && (
           <div className="leading-tight">
             <p className="font-display text-[17px] font-bold tracking-tight">SUMA</p>
@@ -36,7 +36,7 @@ function Sidebar({ onNavigate, collapsed = false, onToggle }: { onNavigate?: () 
       <div className={cn('flex-1 space-y-5 overflow-y-auto pb-4 pt-1', collapsed ? 'px-2' : 'px-3')}>
         {visibleNav(user).map((g) => (
           <div key={g.label}>
-            {!collapsed ? <p className="px-3 pb-1.5 text-[11px] font-semibold text-muted-foreground/80">{g.label}</p> : <div className="mx-3 mb-2 h-px bg-border" />}
+            {!collapsed ? <p className="px-3 pb-1.5 text-[11px] font-semibold text-muted-foreground">{g.label}</p> : <div className="mx-3 mb-2 h-px bg-border" />}
             <ul className="space-y-0.5">
               {g.items.map((i) => (
                 <li key={i.to}>
@@ -162,6 +162,7 @@ export function AppShell() {
 
   return (
     <AttendanceProvider>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lift">Skip to main content</a>
       <div className="flex min-h-screen">
         <aside className={cn('fixed inset-y-3 left-3 z-30 hidden transition-[width] duration-300 lg:block', collapsed ? 'w-[80px]' : 'w-[248px]')}>
           <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
@@ -169,7 +170,7 @@ export function AppShell() {
         <AnimatePresence>
           {mobile && (
             <>
-              <motion.div className="fixed inset-0 z-40 bg-navy-900/40 backdrop-blur-sm lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobile(false)} />
+              <motion.div aria-hidden className="fixed inset-0 z-40 bg-navy-900/40 backdrop-blur-sm lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobile(false)} />
               <motion.aside className="fixed inset-y-3 left-3 z-50 w-[260px] lg:hidden" initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
                 <button className="absolute right-3 top-5 z-10 rounded-full p-1.5 text-muted-foreground hover:bg-accent" onClick={() => setMobile(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
                 <Sidebar onNavigate={() => setMobile(false)} />
@@ -212,7 +213,7 @@ export function AppShell() {
               </DropdownMenu>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+          <main id="main" tabIndex={-1} className="mx-auto focus:outline-none w-full max-w-[1480px] flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
             <AnimatePresence mode="wait">
               <motion.div key={location.pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                 <Outlet />

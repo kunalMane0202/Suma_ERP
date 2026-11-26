@@ -8,7 +8,7 @@ export const TabsList = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<type
 ));
 TabsList.displayName = 'TabsList';
 export const TabsTrigger = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>>(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger ref={ref} className={cn('inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-all hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-glow', className)} {...props} />
+  <TabsPrimitive.Trigger ref={ref} className={cn('inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-[color,background-color,box-shadow] hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-glow', className)} {...props} />
 ));
 TabsTrigger.displayName = 'TabsTrigger';
 export const TabsContent = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof TabsPrimitive.Content>>(({ className, ...props }, ref) => (

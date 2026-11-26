@@ -16,7 +16,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
           onPointerDownOutside={(e) => !dismissible && e.preventDefault()}
           className={cn('fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-card shadow-lift ring-1 ring-border/60',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-            'max-h-[90vh] overflow-y-auto', className)}>
+            'max-h-[90vh] overflow-y-auto overscroll-contain', className)}>
           <div className="flex items-start justify-between gap-4 px-6 pb-2 pt-6">
             <div>
               <DialogPrimitive.Title className="font-display text-lg font-semibold">{title}</DialogPrimitive.Title>

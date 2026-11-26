@@ -126,7 +126,7 @@ export default function TicketDetailPage() {
               ))}
               <Can permission="TICKET_UPDATE">
                 <div className="space-y-2 border-t pt-4">
-                  <Textarea aria-label="Add a comment" placeholder="Write a reply or internal note" value={comment} onChange={(e) => setComment(e.target.value)} />
+                  <Textarea aria-label="Add a comment" placeholder="Write a reply or internal note…" value={comment} onChange={(e) => setComment(e.target.value)} />
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="flex items-center gap-2 text-sm"><Switch checked={internal} onCheckedChange={setInternal} aria-label="Internal note" /> Internal note</label>
                     <div className="flex gap-2">

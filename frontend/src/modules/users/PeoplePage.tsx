@@ -66,7 +66,7 @@ function Employees() {
     <>
       <FilterBar right={<div className="flex items-center gap-2"><SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />
         <Can permission="USER_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add employee</Button></Can></div>}>
-        <SearchField label="Search employees" placeholder="Search name, code, username or email" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        <SearchField label="Search employees" placeholder="Search name, code, username or email…" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
         <NativeSelect aria-label="Role" className="w-40 rounded-full" value={role} onChange={(e) => setRole(e.target.value)}><option value="">All roles</option>{['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3'].map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}</NativeSelect>
       </FilterBar>
       {error && <ErrorState message={error} onRetry={reload} />}

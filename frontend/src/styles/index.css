@@ -37,9 +37,15 @@
     --ring: 247 85% 62%;
     --ok: 162 82% 34%;              /* mint (text-safe) */
     --warn: 37 91% 42%;             /* amber (text-safe) */
-    --breach: 349 75% 55%;          /* coral */
+    --breach: 349 75% 52%;          /* coral (white text on it passes AA) */
     --idle: 258 70% 62%;            /* lilac */
     --sky: 207 87% 50%;
+    /* Darker shades used only for text, so status words pass WCAG AA (4.5:1) on white, canvas and their own 15% tint. */
+    --ok-fg: 162 82% 22%;
+    --warn-fg: 34 92% 27%;
+    --breach-fg: 349 75% 40%;
+    --idle-fg: 258 65% 46%;
+    --sky-fg: 207 87% 34%;
     color-scheme: light;
   }
   .dark {
@@ -50,7 +56,7 @@
     --card-foreground: 248 40% 94%;
     --popover: 246 32% 15%;
     --popover-foreground: 248 40% 94%;
-    --primary: 248 95% 72%;
+    --primary: 248 95% 77%;
     --violet: 262 92% 74%;
     --brand-from: 246 80% 60%;
     --brand-to: 262 78% 60%;
@@ -68,13 +74,19 @@
     --ring: 248 95% 72%;
     --ok: 160 65% 52%;
     --warn: 40 92% 60%;
-    --breach: 349 88% 68%;
+    --breach: 349 70% 50%;          /* fill: white text on it passes AA */
     --idle: 258 85% 78%;
     --sky: 205 90% 64%;
+    --ok-fg: var(--ok);
+    --warn-fg: var(--warn);
+    --breach-fg: 349 90% 74%;
+    --idle-fg: var(--idle);
+    --sky-fg: var(--sky);
     color-scheme: dark;
   }
   * { @apply border-border; }
-  html { -webkit-font-smoothing: antialiased; }
+  html { -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+  a, button, [role='button'], input, select, textarea, label { touch-action: manipulation; }
   body {
     @apply bg-background text-foreground font-sans text-[14px];
     background-image:
@@ -102,3 +114,10 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* Status text uses the darker -fg shades (fills keep the brighter tokens). Unlayered so it follows the utilities. */
+.text-ok { color: hsl(var(--ok-fg)); }
+.text-warn { color: hsl(var(--warn-fg)); }
+.text-breach { color: hsl(var(--breach-fg)); }
+.text-idle { color: hsl(var(--idle-fg)); }
+.text-sky { color: hsl(var(--sky-fg)); }

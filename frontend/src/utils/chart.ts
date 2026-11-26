@@ -14,7 +14,24 @@ export const CHART = {
   axis: 'hsl(var(--muted-foreground))',
 };
 
-export const PRIORITY_COLORS: Record<string, string> = { CRITICAL: CHART.breach, HIGH: CHART.orange, MEDIUM: CHART.warn, LOW: CHART.ok };
+/**
+ * Ticket-flow series (received / resolved / breached, also success / failed).
+ * Checked with the dataviz validator in light and dark: distinguishable with red-green colour blindness
+ * (the old green/red pair was not) and >= 3:1 against both chart surfaces.
+ */
+export const SERIES = { received: '#5B4CF0', resolved: '#0E9F8E', breached: '#E8590C' };
+
+/**
+ * Ordered categories (priority, ticket age) use one coral hue with stepped lightness, so the order is
+ * readable from the colour itself. Dark mode has its own validated steps (lighter = more severe).
+ */
+const PRIORITY_LIGHT: Record<string, string> = { LOW: '#ee939b', MEDIUM: '#de6674', HIGH: '#c73751', CRITICAL: '#9a1c37' };
+const PRIORITY_DARK: Record<string, string> = { LOW: '#8b333f', MEDIUM: '#c34658', HIGH: '#ea6878', CRITICAL: '#ff9da5' };
+const AGEING_LIGHT = ['#ed9aa0', '#e4737f', '#d54e62', '#bd2c49', '#961735'];
+const AGEING_DARK = ['#84343f', '#b13e4f', '#d85164', '#f37986', '#ffa6ad'];
+
+export const priorityColors = (dark: boolean) => (dark ? PRIORITY_DARK : PRIORITY_LIGHT);
+export const ageingColors = (dark: boolean) => (dark ? AGEING_DARK : AGEING_LIGHT);
 
 export const tooltipStyle = {
   contentStyle: {

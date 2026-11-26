@@ -159,7 +159,7 @@ function BreakPolicies() {
                 {([['Max min', p.maxDurationMinutes], ['Per day', p.maxPerDay], ['Remind', p.reminderAfterMinutes]] as [string, number | undefined][]).map(([k, v]) => (
                   <div key={k} className="rounded-xl bg-card py-2"><p className="display-num text-lg">{v ?? '—'}</p><p className="text-[11px] text-muted-foreground">{k}</p></div>))}
               </div>
-              <div className="mt-2 flex justify-end"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button><Button variant="ghost" size="icon" aria-label="Delete policy" onClick={async () => { await api.delete(`/attendance/policies/${p.id}`); reload(); }}><Trash2 /></Button></div>
+              <div className="mt-2 flex justify-end"><Button variant="ghost" size="sm" onClick={() => setEdit(p)}>Edit</Button><Button variant="ghost" size="icon" aria-label="Delete policy" onClick={async () => { if (!window.confirm(`Delete the break policy ${p.name}?`)) return; await api.delete(`/attendance/policies/${p.id}`); reload(); }}><Trash2 /></Button></div>
             </div>
           ))}</div>
         )}

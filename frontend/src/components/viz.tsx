@@ -114,3 +114,12 @@ export function ShiftRing({ workedSeconds, targetSeconds, breakSeconds, breakLim
     </div>
   );
 }
+
+/** Legend for charts with two or more series: colour swatch + name, so identity never relies on colour alone. */
+export function ChartLegend({ items }: { items: [color: string, label: string][] }) {
+  return (
+    <ul className="flex flex-wrap gap-3 text-xs text-muted-foreground" aria-label="Legend">
+      {items.map(([c, l]) => <li key={l} className="flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />{l}</li>)}
+    </ul>
+  );
+}

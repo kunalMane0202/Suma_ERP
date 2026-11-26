@@ -65,7 +65,6 @@ export default function TicketsPage() {
   const [sort, setSort] = useState('newest');
   const [creating, setCreating] = useState(false);
   const [layout, setLayout] = useState<'list' | 'cards'>('list');
-  const navigate = useNavigate();
   const counts = useTicketCounts();
   useEffect(() => { const h = setTimeout(() => setDebounced(q), 300); return () => clearTimeout(h); }, [q]);
   useEffect(() => setPage(0), [view, debounced, priority, projectId]);
@@ -94,7 +93,7 @@ export default function TicketsPage() {
         ))}
       </div>
       <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'list', label: 'List' }, { value: 'cards', label: 'Cards' }]} />}>
-        <SearchField label="Search tickets" placeholder="Search number or title" value={q} onChange={setQ} />
+        <SearchField label="Search tickets" placeholder="Search number or title…" value={q} onChange={setQ} />
         {lk.projects.length > 0 && <NativeSelect aria-label="Project" className="w-44 rounded-full" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>}
         <NativeSelect aria-label="Priority" className="w-36 rounded-full" value={priority} onChange={(e) => setPriority(e.target.value)}>
           <option value="">Any priority</option>{['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>)}
@@ -109,10 +108,10 @@ export default function TicketsPage() {
           <>
             <CardGrid>
               {data.content.map((t) => (
-                <GridCard key={t.id} className="relative overflow-hidden" onClick={() => navigate(`/tickets/${t.id}`)}>
+                <GridCard key={t.id} className="overflow-hidden" to={`/tickets/${t.id}`} label={`${t.ticketNumber}: ${t.title}`}>
                   <span className={`absolute inset-x-0 top-0 h-1 ${STRIPE[t.priority]}`} aria-hidden />
                   <div className="flex items-center justify-between gap-2"><span className="num text-xs font-semibold text-muted-foreground">{t.ticketNumber}</span><StatusBadge status={t.status} /></div>
-                  <Link to={`/tickets/${t.id}`} onClick={(e) => e.stopPropagation()} className="mt-2 font-display text-[15px] font-semibold leading-snug hover:text-primary">{t.title}</Link>
+                  <p className="mt-2 font-display text-[15px] font-semibold leading-snug">{t.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{t.projectName} · {t.clientName}</p>
                   <SlaBar t={t} />
                   <div className="mt-auto flex items-center justify-between pt-4">

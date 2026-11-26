@@ -114,7 +114,7 @@ export default function ProjectDetailPage() {
                   <TR key={m.userId}><TD><div className="flex items-center gap-3"><Avatar name={m.fullName} className="h-8 w-8 text-[10px]" /><div><p className="font-semibold">{m.fullName}</p><p className="text-xs text-muted-foreground">{m.employeeCode}</p></div></div></TD><TD>{m.role}</TD>
                     <TD><Badge tone={m.designation === 'PROJECT_LEAD' ? 'navy' : m.designation === 'MEMBER' ? 'neutral' : 'blue'}>{titleCase(m.designation)}</Badge></TD>
                     <TD className="num text-right">{m.allocationPercent}%</TD><TD>{m.primary ? 'Yes' : ''}</TD>
-                    <TD className="text-right"><Can permission="PROJECT_WRITE"><Button variant="ghost" size="icon" aria-label={`Remove ${m.fullName}`} onClick={() => removeMember(m.userId)}><Trash2 /></Button></Can></TD></TR>
+                    <TD className="text-right"><Can permission="PROJECT_WRITE"><Button variant="ghost" size="icon" aria-label={`Remove ${m.fullName}`} onClick={() => window.confirm(`Remove ${m.fullName} from this project?`) && removeMember(m.userId)}><Trash2 /></Button></Can></TD></TR>
                 ))}
               </TBody>
             </Table>
@@ -131,9 +131,9 @@ export default function ProjectDetailPage() {
             </ul>
             <Can permission="PROJECT_WRITE">
               <div className="mt-4 space-y-2 border-t pt-3">
-                <Input aria-label="Category name" placeholder="New category or subcategory" value={cat.name} onChange={(e) => setCat({ ...cat, name: e.target.value })} />
+                <Input aria-label="Category name" placeholder="New category or subcategory…" value={cat.name} onChange={(e) => setCat({ ...cat, name: e.target.value })} />
                 <NativeSelect aria-label="Parent category" value={cat.parentId} onChange={(e) => setCat({ ...cat, parentId: e.target.value })}><option value="">Top level</option>{(cats.data ?? []).filter((c) => !c.parentId).map((c) => <option key={c.id} value={c.id}>Under {c.name}</option>)}</NativeSelect>
-                <Input aria-label="Keywords" placeholder="Keywords, comma separated" value={cat.keywords} onChange={(e) => setCat({ ...cat, keywords: e.target.value })} />
+                <Input aria-label="Keywords" placeholder="Keywords, comma separated…" value={cat.keywords} onChange={(e) => setCat({ ...cat, keywords: e.target.value })} />
                 <Button size="sm" disabled={!cat.name.trim()} onClick={addCategory}>Add category</Button>
               </div>
             </Can>

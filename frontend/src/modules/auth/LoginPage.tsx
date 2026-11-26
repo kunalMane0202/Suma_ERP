@@ -43,14 +43,14 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <section className="relative hidden overflow-hidden bg-[#17142E] p-12 text-white lg:flex lg:flex-col">
+      <aside aria-label="About SUMA" className="relative hidden overflow-hidden bg-[#17142E] p-12 text-white lg:flex lg:flex-col">
         {/* gradient mesh */}
         <div className="pointer-events-none absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#5B4CF0] opacity-60 blur-[110px]" />
         <div className="pointer-events-none absolute right-[-80px] top-1/3 h-[360px] w-[360px] rounded-full bg-[#8B5CF6] opacity-50 blur-[110px]" />
         <div className="pointer-events-none absolute bottom-[-120px] left-1/3 h-[360px] w-[360px] rounded-full bg-[#F0506E] opacity-30 blur-[120px]" />
         <div className="pointer-events-none absolute inset-0 opacity-[.08] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:18px_18px]" />
 
-        <div className="relative flex items-center gap-3"><img src="/favicon.svg" alt="" className="h-10 w-10 rounded-xl shadow-glow" /><span className="font-display text-lg font-bold">SUMA Tracking Tool</span></div>
+        <div className="relative flex items-center gap-3"><img src="/favicon.svg" alt="" width={40} height={40} className="h-10 w-10 rounded-xl shadow-glow" /><span className="font-display text-lg font-bold">SUMA Tracking Tool</span></div>
 
         {/* floating bento preview */}
         <div className="relative mx-auto mt-14 grid w-full max-w-[520px] grid-cols-5 gap-4" aria-hidden>
@@ -76,14 +76,14 @@ export function LoginPage() {
         </div>
 
         <div className="relative mt-auto max-w-md">
-          <h1 className="text-[38px] font-bold leading-[1.1]">Every ticket, SLA clock and shift in one place.</h1>
+          <p className="font-display text-[38px] font-bold leading-[1.1]">Every ticket, SLA clock and shift in one place.</p>
           <p className="mt-4 text-white/70">Service desk operations, SLA tracking and workforce attendance for support teams across clients and projects.</p>
         </div>
-      </section>
-      <section className="relative flex items-center justify-center px-4 py-12">
+      </aside>
+      <main className="relative flex items-center justify-center px-4 py-12">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="glass w-full max-w-[400px] p-8">
-          <div className="mb-6 flex items-center gap-2.5 lg:hidden"><img src="/favicon.svg" alt="" className="h-9 w-9 rounded-xl" /><span className="font-display font-bold">SUMA Tracking Tool</span></div>
-          <h2 className="text-[26px] font-bold">Welcome back</h2>
+          <div className="mb-6 flex items-center gap-2.5 lg:hidden"><img src="/favicon.svg" alt="" width={36} height={36} className="h-9 w-9 rounded-xl" /><span className="font-display font-bold">SUMA Tracking Tool</span></div>
+          <h1 className="text-[26px] font-bold">Welcome back</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Sign in with your SUMA account. Your sign-in starts today's attendance record.</p>
           <form className="mt-7 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
             <Field label="Username or email" htmlFor="username" error={errors.username?.message}>
@@ -101,7 +101,7 @@ export function LoginPage() {
               breaks and periods without activity in this app. You can review everything recorded under My attendance.</p>
           </div>
         </motion.div>
-      </section>
+      </main>
     </div>
   );
 }

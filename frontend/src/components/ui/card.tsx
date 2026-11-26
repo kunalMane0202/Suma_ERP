@@ -25,7 +25,7 @@ export const CardHeader = ({ className, ...props }: HTMLAttributes<HTMLDivElemen
   <div className={cn('flex items-start justify-between gap-3 px-6 pt-5 pb-3', className)} {...props} />
 );
 export const CardTitle = ({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn('font-display text-[16px] font-semibold leading-tight', className)} {...props} />
+  <h2 className={cn('font-display text-[16px] font-semibold leading-tight', className)} {...props} />
 );
 export const CardDescription = ({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) => (
   <p className={cn('mt-1 text-[13px] text-muted-foreground', className)} {...props} />

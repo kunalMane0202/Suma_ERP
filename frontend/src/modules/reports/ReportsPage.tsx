@@ -15,28 +15,30 @@ import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
 import { download, errorMessage } from '@/services/api';
-import { CHART, tooltipStyle } from '@/utils/chart';
+import { CHART, SERIES, ageingColors, tooltipStyle } from '@/utils/chart';
+import { useTheme } from '@/contexts/ThemeContext';
 import { dateTime, isoDate } from '@/utils/format';
 
 const ICONS: Record<string, LucideIcon> = { productivity: Trophy, sla: Timer, pending: Hourglass, ageing: CalendarClock, daily: CalendarDays, weekly: CalendarRange, monthly: Calendar, client: Building2, project: FolderKanban, team: UsersRound };
 
 const TYPES: { key: string; label: string; description: string; chart?: { x: string; bars: [string, string][] } }[] = [
-  { key: 'productivity', label: 'Employee productivity', description: 'Assigned, resolved and breached tickets per engineer', chart: { x: 'employee', bars: [['resolved', CHART.ok], ['open', CHART.primary], ['breached', CHART.breach]] } },
+  { key: 'productivity', label: 'Employee productivity', description: 'Assigned, resolved and breached tickets per engineer', chart: { x: 'employee', bars: [['resolved', SERIES.resolved], ['open', SERIES.received], ['breached', SERIES.breached]] } },
   { key: 'sla', label: 'SLA compliance', description: 'Response and resolution compliance by project and priority' },
   { key: 'pending', label: 'Pending tickets', description: 'Every open ticket with its age and due time' },
-  { key: 'ageing', label: 'Ticket ageing', description: 'Open tickets bucketed by age', chart: { x: 'project', bars: [['lt24h', CHART.ok], ['d1to3', CHART.primarySoft], ['d3to7', CHART.warn], ['d7to14', '#E0782F'], ['gt14d', CHART.breach]] } },
+  { key: 'ageing', label: 'Ticket ageing', description: 'Open tickets bucketed by age', chart: { x: 'project', bars: [['lt24h', 'AGE0'], ['d1to3', 'AGE1'], ['d3to7', 'AGE2'], ['d7to14', 'AGE3'], ['gt14d', 'AGE4']] } },
   { key: 'daily', label: 'Daily report', description: 'Today, ticket movement' },
-  { key: 'weekly', label: 'Weekly report', description: 'Last 7 days, by day', chart: { x: 'date', bars: [['received', CHART.primary], ['resolved', CHART.ok], ['breached', CHART.breach]] } },
-  { key: 'monthly', label: 'Monthly report', description: 'Last 30 days, by day', chart: { x: 'date', bars: [['received', CHART.primary], ['resolved', CHART.ok], ['breached', CHART.breach]] } },
-  { key: 'client', label: 'Client report', description: 'Volumes and breaches per client', chart: { x: 'client', bars: [['received', CHART.primary], ['resolved', CHART.ok], ['breached', CHART.breach]] } },
-  { key: 'project', label: 'Project report', description: 'Volumes and breaches per project', chart: { x: 'project', bars: [['received', CHART.primary], ['resolved', CHART.ok], ['breached', CHART.breach]] } },
-  { key: 'team', label: 'Team report', description: 'Volumes and breaches per team', chart: { x: 'team', bars: [['received', CHART.primary], ['resolved', CHART.ok], ['breached', CHART.breach]] } },
+  { key: 'weekly', label: 'Weekly report', description: 'Last 7 days, by day', chart: { x: 'date', bars: [['received', SERIES.received], ['resolved', SERIES.resolved], ['breached', SERIES.breached]] } },
+  { key: 'monthly', label: 'Monthly report', description: 'Last 30 days, by day', chart: { x: 'date', bars: [['received', SERIES.received], ['resolved', SERIES.resolved], ['breached', SERIES.breached]] } },
+  { key: 'client', label: 'Client report', description: 'Volumes and breaches per client', chart: { x: 'client', bars: [['received', SERIES.received], ['resolved', SERIES.resolved], ['breached', SERIES.breached]] } },
+  { key: 'project', label: 'Project report', description: 'Volumes and breaches per project', chart: { x: 'project', bars: [['received', SERIES.received], ['resolved', SERIES.resolved], ['breached', SERIES.breached]] } },
+  { key: 'team', label: 'Team report', description: 'Volumes and breaches per team', chart: { x: 'team', bars: [['received', SERIES.received], ['resolved', SERIES.resolved], ['breached', SERIES.breached]] } },
 ];
 
 interface Report { type: string; title: string; from: string; to: string; columns: string[]; rows: Record<string, unknown>[] }
 const label = (c: string) => c.replace(/([A-Z])/g, ' $1').replace(/^lt24h$/, '< 24h').replace(/^d(\d+)to(\d+)$/, '$1–$2 days').replace(/^gt14d$/, '> 14 days').replace(/^./, (x) => x.toUpperCase());
 
 export default function ReportsPage() {
+  const age = ageingColors(useTheme().theme === 'DARK');
   const { can, user } = useAuth();
   const lk = useLookups();
   const [type, setType] = useState('productivity');
@@ -92,13 +94,13 @@ export default function ReportsPage() {
               {def.chart && data && data.rows.length > 0 && (
                 <CardContent className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.rows.slice(0, 31)} margin={{ left: -16, right: 8 }}>
+                    <BarChart data={data.rows.slice(0, 31).map(({ role: _role, ...r }) => r)} margin={{ left: -16, right: 8 }}>
                       <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey={def.chart.x} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} interval="preserveStartEnd" tickFormatter={(v: string) => (v.length > 14 ? v.slice(0, 13) + '…' : v)} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                       <RTooltip {...tooltipStyle} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      {def.chart.bars.map(([k, c]) => <Bar key={k} dataKey={k} name={label(k)} fill={c} radius={type === 'ageing' ? 0 : [6, 6, 0, 0]} maxBarSize={28} stackId={type === 'ageing' ? 'a' : undefined} />)}
+                      <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-muted-foreground">{v}</span>} />
+                      {def.chart.bars.map(([k, c]) => <Bar key={k} dataKey={k} name={label(k)} fill={c.startsWith('AGE') ? age[Number(c.slice(3))] : c} radius={type === 'ageing' ? 0 : [6, 6, 0, 0]} maxBarSize={28} stackId={type === 'ageing' ? 'a' : undefined} stroke={type === 'ageing' ? 'hsl(var(--card))' : undefined} strokeWidth={type === 'ageing' ? 2 : 0} />)}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -107,7 +109,7 @@ export default function ReportsPage() {
             <Card className="pt-2">
               {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
               {loading && !data ? <TableSkeleton /> : data && (data.rows.length === 0 ? <EmptyState title="No data for this range" /> : (
-                <Table>
+                <Table scrollLabel={`${def.label} table`}>
                   <THead><TR>{data.columns.map((c) => <TH key={c}>{label(c)}</TH>)}</TR></THead>
                   <TBody>{data.rows.map((r, i) => <TR key={i}>{data.columns.map((c) => <TD key={c} className={typeof r[c] === 'number' ? 'num' : ''}>{fmt(r[c])}</TD>)}</TR>)}</TBody>
                 </Table>

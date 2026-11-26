@@ -1,6 +1,7 @@
 import { BellRing, CalendarDays, Plus, Timer, Trash2 } from 'lucide-react';
 import { CardGrid, GridCard, HeroBanner, IconTile } from '@/components/layout';
-import { PRIORITY_COLORS } from '@/utils/chart';
+import { priorityColors } from '@/utils/chart';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const mins = (m: number) => (m % 1440 === 0 ? `${m / 1440}d` : m % 60 === 0 ? `${m / 60}h` : `${m}m`);
 
 export default function SlaPage() {
+  const prio = priorityColors(useTheme().theme === 'DARK');
   const lk = useLookups();
   const policies = useApi<Policy[]>('/sla/policies');
   const calendars = useApi<Calendar[]>('/sla/calendars');
@@ -64,7 +66,7 @@ export default function SlaPage() {
         <CardGrid className="xl:grid-cols-4">
           {(policies.data ?? []).map((p) => (
             <GridCard key={p.id} className={`relative overflow-hidden ${p.active ? '' : 'opacity-50'}`}>
-              <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: PRIORITY_COLORS[p.priority] }} />
+              <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: prio[p.priority] }} />
               <div className="flex items-start justify-between gap-2"><PriorityTag priority={p.priority} />{!p.active && <Badge>Inactive</Badge>}</div>
               <p className="mt-2 font-semibold leading-snug">{p.name}</p>
               <p className="text-xs text-muted-foreground">{projectName(p.projectId)}</p>
@@ -90,7 +92,7 @@ export default function SlaPage() {
               <div className="mb-4 grid grid-cols-7 gap-1.5">
                 {DAYS.map((d, i) => { const h = c.hours.find((x) => x.dayOfWeek === i + 1); return (
                   <div key={d} className={`rounded-xl py-2 text-center ${h ? 'bg-brand text-white shadow-glow' : 'bg-muted text-muted-foreground'}`}>
-                    <p className="text-xs font-semibold">{d}</p><p className="display-num mt-0.5 text-[10px] opacity-80">{h ? `${h.startTime.slice(0, 5)}` : 'off'}</p></div>); })}
+                    <p className="text-xs font-semibold">{d}</p><p className="display-num mt-0.5 text-[10px]">{h ? `${h.startTime.slice(0, 5)}` : 'off'}</p></div>); })}
               </div>
               <div className="space-y-1.5">
                 {DAYS.map((d, i) => {
@@ -111,7 +113,7 @@ export default function SlaPage() {
                 <div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">Holidays</p><Can permission="SLA_WRITE"><Button size="sm" variant="outline" onClick={() => setHol({ calendarId: c.id, date: '', name: '' })}><Plus /> Add holiday</Button></Can></div>
                 {c.holidays.length === 0 ? <p className="text-xs text-muted-foreground">No holidays.</p> : (
                   <ul className="flex flex-wrap gap-2 text-sm">{c.holidays.map((h) => <li key={h.id} className="flex items-center gap-1 rounded-full bg-warn/10 py-0.5 pl-3 pr-1"><span><span className="font-semibold">{h.name}</span> <span className="text-xs text-muted-foreground">{date(h.holidayDate)}</span></span>
-                    <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Remove ${h.name}`} onClick={async () => { await api.delete(`/sla/holidays/${h.id}`); calendars.reload(); }}><Trash2 /></Button></Can></li>)}</ul>
+                    <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Remove ${h.name}`} onClick={async () => { if (!window.confirm(`Remove the holiday ${h.name}?`)) return; await api.delete(`/sla/holidays/${h.id}`); calendars.reload(); }}><Trash2 /></Button></Can></li>)}</ul>
                 )}
               </div>
             </CardContent>
@@ -133,7 +135,7 @@ export default function SlaPage() {
                     <p className="text-xs text-muted-foreground">{projectName(e.projectId)} · {e.priority ? titleCase(e.priority) : 'Any priority'}</p>
                     <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-0.5 text-xs font-medium shadow-glass"><BellRing className="h-3 w-3" /> {e.notifyRole ? titleCase(e.notifyRole) : 'No notification'}</p>
                   </div>
-                  <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { await api.delete(`/sla/escalation-rules/${e.id}`); escalations.reload(); }}><Trash2 /></Button></Can>
+                  <Can permission="SLA_WRITE"><Button variant="ghost" size="icon" aria-label="Delete rule" onClick={async () => { if (!window.confirm('Delete this escalation rule?')) return; await api.delete(`/sla/escalation-rules/${e.id}`); escalations.reload(); }}><Trash2 /></Button></Can>
                 </li>
               ))}
             </ol>

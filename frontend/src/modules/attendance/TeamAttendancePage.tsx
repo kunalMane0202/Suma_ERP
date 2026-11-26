@@ -1,3 +1,4 @@
+import { ChartLegend } from '@/components/viz';
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
@@ -20,7 +21,7 @@ import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, download, errorMessage } from '@/services/api';
-import { CHART, tooltipStyle } from '@/utils/chart';
+import { CHART, SERIES, tooltipStyle } from '@/utils/chart';
 import { dateTime, duration, isoDate, relative, time, titleCase } from '@/utils/format';
 import type { AttendanceDashboard, DailyReport, MonthlyReport, ReportLog } from '@/types/attendance';
 import type { Page } from '@/types/api';
@@ -159,7 +160,7 @@ function LiveTab() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><div><CardTitle>Sign-ins and breaks by hour</CardTitle><CardDescription>Today, reporting timezone</CardDescription></div></CardHeader>
+              <CardHeader className="flex-wrap"><div><CardTitle>Sign-ins and breaks by hour</CardTitle><CardDescription>Today, reporting timezone</CardDescription></div><ChartLegend items={[[SERIES.received, 'Sign-ins'], [SERIES.resolved, 'Breaks started']]} /></CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.loginsByHour.filter((h) => h.hour >= 5 && h.hour <= 23)} margin={{ left: -24, right: 4 }}>
@@ -167,8 +168,8 @@ function LiveTab() {
                     <XAxis dataKey="hour" tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                     <RTooltip {...tooltipStyle} labelFormatter={(h) => `${h}:00`} />
-                    <Bar dataKey="logins" name="Sign-ins" fill={CHART.primary} radius={[6, 6, 6, 6]} barSize={10} />
-                    <Bar dataKey="breaks" name="Breaks started" fill={CHART.warn} radius={[6, 6, 6, 6]} barSize={10} />
+                    <Bar dataKey="logins" name="Sign-ins" fill={SERIES.received} radius={[6, 6, 6, 6]} barSize={10} />
+                    <Bar dataKey="breaks" name="Breaks started" fill={SERIES.resolved} radius={[6, 6, 6, 6]} barSize={10} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

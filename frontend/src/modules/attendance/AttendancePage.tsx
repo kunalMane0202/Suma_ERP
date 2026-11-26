@@ -93,7 +93,7 @@ export default function AttendancePage() {
           </Card>
           <Card className="flex-1">
             <CardHeader><div><CardTitle>Today's log</CardTitle><CardDescription>Sessions, breaks and inactivity prompts</CardDescription></div></CardHeader>
-            <CardContent className="max-h-[380px] overflow-y-auto px-0 pb-3">
+            <CardContent tabIndex={0} role="region" aria-label="Today's log" className="max-h-[380px] overflow-y-auto px-0 pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {today.breaks.length === 0 && today.sessions.length === 0 ? <EmptyState title="Nothing recorded yet today" /> : (
                 <Table>
                   <THead><TR><TH>Type</TH><TH>Start</TH><TH>End</TH><TH>Duration</TH><TH>Detail</TH></TR></THead>
@@ -123,7 +123,7 @@ export default function AttendancePage() {
         <CardContent className="grid gap-4 pt-6 md:grid-cols-[auto_1fr]">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-white shadow-glow"><MonitorSmartphone className="h-5 w-5" /></span>
           <div>
-            <h3 className="font-display text-[16px] font-semibold">What SUMA records</h3>
+            <h2 className="font-display text-[16px] font-semibold">What SUMA records</h2>
             <div className="mt-2 grid gap-x-8 gap-y-1.5 text-sm text-muted-foreground md:grid-cols-2">
               <p>Sign-in and sign-out times, the network address and browser used for each session.</p>
               <p>Breaks you start and end, and their durations.</p>

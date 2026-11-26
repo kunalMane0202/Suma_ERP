@@ -4,7 +4,7 @@ import { CardGrid, FilterBar, GridCard, SearchField, SegmentedControl } from '@/
 import { AvatarStack } from '@/components/viz';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
@@ -31,13 +31,12 @@ export default function ProjectsPage() {
   const { data, error, loading, reload } = useApi<Page<Project>>('/projects', { q: q || undefined, clientId: clientId || undefined, page, size: 20 });
   const [editing, setEditing] = useState<Project | null | undefined>(undefined);
   const [layout, setLayout] = useState<'cards' | 'table'>('cards');
-  const navigate = useNavigate();
   return (
     <>
       <PageHeader title="Projects" description="Support engagements per client: leadership, Project Lead report recipient, support hours and staffing."
         actions={<Can permission="PROJECT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> New project</Button></Can>} />
       <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />}>
-        <SearchField label="Search projects" placeholder="Search name or code" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        <SearchField label="Search projects" placeholder="Search name or code…" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
         {lk.clients.length > 0 && <NativeSelect aria-label="Client" className="w-52 rounded-full" value={clientId} onChange={(e) => setClientId(e.target.value)}><option value="">All clients</option>{lk.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>}
       </FilterBar>
       {error && <ErrorState message={error} onRetry={reload} />}
@@ -45,10 +44,10 @@ export default function ProjectsPage() {
         <>
           <CardGrid>
             {data.content.map((p) => (
-              <GridCard key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="relative overflow-hidden">
+              <GridCard key={p.id} to={`/projects/${p.id}`} label={p.name} className="overflow-hidden">
                 <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet/10 blur-xl" />
                 <div className="relative flex items-start justify-between gap-2">
-                  <div className="min-w-0"><p className="text-xs font-semibold text-primary">{p.code}</p><Link to={`/projects/${p.id}`} onClick={(e) => e.stopPropagation()} className="mt-0.5 block font-display text-[16px] font-semibold leading-snug hover:text-primary">{p.name}</Link>
+                  <div className="min-w-0"><p className="text-xs font-semibold text-primary">{p.code}</p><p className="mt-0.5 font-display text-[16px] font-semibold leading-snug">{p.name}</p>
                     <p className="text-xs text-muted-foreground">{p.clientName}</p></div>
                   <Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{p.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
                 </div>

@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
-import { CHART, PRIORITY_COLORS, tooltipStyle } from '@/utils/chart';
+import { useTheme } from '@/contexts/ThemeContext';
+import { CHART, SERIES, priorityColors, tooltipStyle } from '@/utils/chart';
 import { duration, isoDate } from '@/utils/format';
 import type { AttendanceDashboard } from '@/types/attendance';
 
@@ -30,6 +31,7 @@ const RANGES = [{ label: 'Today', days: 0 }, { label: '7 days', days: 6 }, { lab
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const prio = priorityColors(useTheme().theme === 'DARK');
   const lk = useLookups();
   const [range, setRange] = useState(29);
   const [custom, setCustom] = useState<{ from?: string; to?: string }>({});
@@ -101,7 +103,7 @@ export default function DashboardPage() {
           {/* SLA health */}
           <Bento className="md:col-span-5 xl:col-span-3 xl:row-span-2">
             <div className="flex h-full flex-col items-center p-6 text-center">
-              <div className="flex w-full items-center justify-between"><h3 className="font-display text-[16px] font-semibold">SLA compliance</h3><ShieldCheck className="h-4 w-4 text-muted-foreground" /></div>
+              <div className="flex w-full items-center justify-between"><h2 className="font-display text-[16px] font-semibold">SLA compliance</h2><ShieldCheck className="h-4 w-4 text-muted-foreground" /></div>
               <div className="my-auto py-4">
                 <RadialGauge value={k.slaCompliancePercent} size={176} stroke={16} tone={k.slaCompliancePercent >= 95 ? 'ok' : k.slaCompliancePercent >= 85 ? 'warn' : 'breach'}
                   label={<span className="display-num text-[34px] leading-none">{k.slaCompliancePercent.toFixed(1)}<span className="text-lg">%</span></span>} sublabel="of resolved tickets" />
@@ -146,21 +148,21 @@ export default function DashboardPage() {
           {/* Ticket flow */}
           <Bento className={wf ? 'md:col-span-7 xl:col-span-8' : 'md:col-span-12'}>
             <CardHeader><div><CardTitle>Ticket flow</CardTitle><CardDescription>Received, resolved and breached per day</CardDescription></div>
-              <div className="flex gap-3 text-xs text-muted-foreground"><Legend c={CHART.primary} l="Received" /><Legend c={CHART.ok} l="Resolved" /><Legend c={CHART.breach} l="Breached" /></div></CardHeader>
+              <div className="flex gap-3 text-xs text-muted-foreground"><Legend c={SERIES.received} l="Received" /><Legend c={SERIES.resolved} l="Resolved" /><Legend c={SERIES.breached} l="Breached" /></div></CardHeader>
             <CardContent className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.trend} margin={{ left: -18, right: 8, top: 8 }}>
                   <defs>
-                    <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={CHART.primary} stopOpacity={0.35} /><stop offset="100%" stopColor={CHART.violet} stopOpacity={0} /></linearGradient>
-                    <linearGradient id="gRes" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={CHART.ok} stopOpacity={0.25} /><stop offset="100%" stopColor={CHART.ok} stopOpacity={0} /></linearGradient>
+                    <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SERIES.received} stopOpacity={0.35} /><stop offset="100%" stopColor={CHART.violet} stopOpacity={0} /></linearGradient>
+                    <linearGradient id="gRes" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SERIES.resolved} stopOpacity={0.25} /><stop offset="100%" stopColor={SERIES.resolved} stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid stroke={CHART.grid} strokeDasharray="2 6" vertical={false} />
                   <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 11, fill: CHART.axis }} tickLine={false} axisLine={false} minTickGap={24} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: CHART.axis }} tickLine={false} axisLine={false} />
                   <RTooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="received" name="Received" stroke={CHART.primary} strokeWidth={2.5} fill="url(#gRec)" animationDuration={700} />
-                  <Area type="monotone" dataKey="resolved" name="Resolved" stroke={CHART.ok} strokeWidth={2.5} fill="url(#gRes)" animationDuration={800} />
-                  <Area type="monotone" dataKey="breached" name="Breached" stroke={CHART.breach} strokeWidth={1.5} strokeDasharray="4 4" fill="transparent" animationDuration={900} />
+                  <Area type="monotone" dataKey="received" name="Received" stroke={SERIES.received} strokeWidth={2.5} fill="url(#gRec)" animationDuration={700} />
+                  <Area type="monotone" dataKey="resolved" name="Resolved" stroke={SERIES.resolved} strokeWidth={2.5} fill="url(#gRes)" animationDuration={800} />
+                  <Area type="monotone" dataKey="breached" name="Breached" stroke={SERIES.breached} strokeWidth={1.5} strokeDasharray="4 4" fill="transparent" animationDuration={900} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -170,20 +172,20 @@ export default function DashboardPage() {
           <Bento className="md:col-span-6 xl:col-span-4">
             <CardHeader><div><CardTitle>Priority mix</CardTitle><CardDescription>Tickets received in range</CardDescription></div></CardHeader>
             <CardContent className="flex items-center gap-4">
-              <div className="relative h-[170px] w-[170px] shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="relative h-[170px] w-[170px] shrink-0" role="img" aria-label={`Priority mix: ${data.priorityDistribution.map((p) => `${p.label} ${p.count}`).join(', ')}`}>
+                <div aria-hidden {...{ inert: '' }} className="h-full w-full"><ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={data.priorityDistribution} dataKey="count" nameKey="label" innerRadius="66%" outerRadius="100%" paddingAngle={3} cornerRadius={6} stroke="none" animationDuration={700}>
-                      {data.priorityDistribution.map((p) => <Cell key={p.priority} fill={PRIORITY_COLORS[p.priority] ?? CHART.primary} />)}
+                      {data.priorityDistribution.map((p) => <Cell key={p.priority} fill={prio[p.priority] ?? CHART.primary} />)}
                     </Pie>
                     <RTooltip {...tooltipStyle} />
                   </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 grid place-items-center text-center"><div><p className="display-num text-2xl">{k.ticketsReceived}</p><p className="text-[11px] text-muted-foreground">tickets</p></div></div>
+                </ResponsiveContainer></div>
+                <div aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center text-center"><div><p className="display-num text-2xl">{k.ticketsReceived}</p><p className="text-[11px] text-muted-foreground">tickets</p></div></div>
               </div>
               <ul className="flex-1 space-y-2 text-sm">
                 {data.priorityDistribution.map((p) => (
-                  <li key={p.priority} className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: PRIORITY_COLORS[p.priority] }} />
+                  <li key={p.priority} className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: prio[p.priority] }} />
                     <span className="flex-1">{p.label}</span><span className="display-num">{p.count}</span></li>
                 ))}
               </ul>
