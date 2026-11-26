@@ -223,11 +223,25 @@ public class AuthService {
     }
 
     @Transactional
-    public void changePassword(UUID userId, AuthDtos.ChangePasswordRequest req) {
+    public void changePassword(UUID userId, UUID currentSessionId, AuthDtos.ChangePasswordRequest req) {
         User u = users.findById(userId).orElseThrow(() -> ApiException.notFound("User"));
         if (!encoder.matches(req.currentPassword(), u.getPasswordHash())) throw ApiException.badRequest("Current password is incorrect");
         u.setPasswordHash(encoder.encode(req.newPassword()));
-        audit.log("PASSWORD_CHANGED", "User", userId, null);
+        int ended = endOtherSessions(userId, currentSessionId, "Password changed", userId);
+        audit.log("PASSWORD_CHANGED", "User", userId, ended > 0 ? "Signed out " + ended + " other session(s)" : null);
+    }
+
+    /** Ends every active session of a user except {@code keep} (may be null). Used after password changes and resets. */
+    @Transactional
+    public int endOtherSessions(UUID userId, UUID keep, String reason, UUID actor) {
+        Instant now = Instant.now(clock);
+        int n = 0;
+        for (UserSession s : sessions.findByUserIdAndStatus(userId, "ACTIVE")) {
+            if (s.getId().equals(keep)) continue;
+            endSession(s, "TERMINATED", reason, actor, "ADMIN_TERMINATED", now);
+            n++;
+        }
+        return n;
     }
 
     private String newRefreshToken(UserSession s, Instant now) {

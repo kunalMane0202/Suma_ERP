@@ -331,7 +331,7 @@ function Rules() {
         {allowCount > 0 && <p className="mx-5 mb-3 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">Allow-list mode is on: {allowCount} allow rule(s) active.</p>}
         {(data ?? []).length === 0 ? <EmptyState icon={<Ban />} title="No IP rules" description="All addresses can reach the sign-in page." /> : (
           <div className="grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-3">{data!.map((r) => (
-            <div key={r.id} className={`relative overflow-hidden rounded-2xl p-4 ${r.ruleType === 'DENY' ? 'bg-breach/5 ring-1 ring-breach/20' : 'bg-ok/5 ring-1 ring-ok/20'} ${r.active ? '' : 'opacity-60'}`}>
+            <div key={r.id} className={`relative overflow-hidden rounded-2xl p-4 ${r.ruleType === 'DENY' ? 'bg-breach/5 ring-1 ring-breach/20' : 'bg-ok/5 ring-1 ring-ok/20'} ${r.active ? '' : 'outline-dashed outline-2 -outline-offset-2 outline-muted-foreground/40 shadow-none'}`}>
               <div className="flex items-start gap-3">
                 <IconTile icon={r.ruleType === 'DENY' ? Ban : ShieldCheck} tone={r.ruleType === 'DENY' ? 'coral' : 'mint'} />
                 <div className="min-w-0 flex-1"><p className="truncate font-mono text-sm font-semibold">{r.cidr}</p><Badge tone={r.ruleType === 'DENY' ? 'red' : 'green'}>{r.ruleType === 'DENY' ? 'Deny' : 'Allow'}</Badge></div>

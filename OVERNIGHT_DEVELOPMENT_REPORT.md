@@ -65,19 +65,32 @@ Run after the redesign with the installed skills; each finding was fixed and re-
 | dataviz (validator script) | Green/red series indistinguishable with red-green colour blindness; priority and ageing used unrelated hues for ordered data. Now validated series colours and one-hue ordinal ramps per theme; legends on every multi-series chart |
 | security review (focused) | Reports CSV export missed '-' formula prefixes and all CSV exports missed tab/CR; integration and RPA URLs could target cloud metadata and loopback. Added `SpreadsheetSafety` and `OutboundUrlGuard` with unit tests |
 
+## Remaining-work pass (2026-11-26)
+
+| Area | Done | Verified by |
+|---|---|---|
+| Authorisation order | `EarlyAuthorizationInterceptor` evaluates `@PreAuthorize` before the body is read: unauthorised callers get 403, not validation details | EarlyAuthorizationIT |
+| Shareable URLs | Tabs, filters and page kept in the address on 8 pages (`useUrlState`, `UrlTabs`) | E2E (tab survives reload), browser check |
+| Health | Mail health indicator off: an SMTP outage no longer reports the app DOWN | `/actuator/health` = UP with SMTP down |
+| Monthly PDF | Summary plus daily details, break timings and idle events | AttendanceIT (PDF text and page count) |
+| Admin screens | Custom ticket fields (API + typed validation + form + details), notification rules (now also escalations, critical incidents, approvals), dashboard widget toggles | CustomFieldIT, Vitest, E2E, browser check |
+| Tests | All 12 automation actions; Jira/Salesforce/REST connectors; attendance summary jobs | AutomationActionsIT, ConnectorIT, AttendanceSummaryIT |
+| Security review | Delegated USER_WRITE/ROLE_MANAGE can no longer create or take over admins or grant unheld permissions; password reset/change signs out other sessions; post-login redirect restricted to in-app paths; startup warning for public API docs in production; axios and react-router patched | DelegatedAdminIT, manual checks |
+| Bugs found by the new tests | Blank external titles created empty tickets (now "(no subject) <id>"); inactive items dimmed below contrast minimum | ConnectorIT, axe |
+
+Results after the pass: backend **75/75**, Vitest **16/16**, E2E **16/16**, production build passes, axe **0 violations** on 21 views in light and dark.
+
 ## Known limitations
 
 1. **Idle detection is browser-only** (activity inside the SUMA tab). System-wide idle detection needs a separately approved desktop agent; none is installed and the UI says so.
 2. **Closing a tab is not treated as a logout** (it would also fire on refresh). Sessions without heartbeat for 30 min are closed at the last heartbeat and marked missing logout.
-3. **Integrations** were not verified against real systems (no credentials) and have no automated tests.
-4. **Automation actions** have no dedicated integration tests (conditions are unit-tested; demo rules execute at seed time).
-5. Notification rules, custom ticket field definitions and dashboard widget toggles have database/API support but **no admin UI** yet.
-6. Some endpoints validate the request body before checking permissions, so an unauthorised caller may get 400 instead of 403 for an invalid body.
-7. Session revocation is cached for up to 20 s per backend node; the login rate limiter is per node.
-8. Monthly PDF export contains the summary only; the Excel export carries daily details, every break timing and idle events.
-9. Attendance does not yet apply holiday calendars (needs a business decision).
-10. In E2E, clicking a ticket action during the page transition could miss; the test waits for the page to settle. Not reproduced manually.
-11. Approximate IP geolocation is not enabled (no approved provider).
+3. **Integrations** were not verified against real systems (no credentials). Jira, Salesforce and REST connectors are tested against a local stub server; the email (IMAP) connector has no automated test.
+4. Session revocation is cached for up to 20 s per backend node; the login rate limiter is per node.
+5. Attendance does not yet apply holiday calendars (needs a business decision).
+6. npm audit: zod (memory use on oversized input, client-side forms only) and react-router (open redirect via backslash paths; the app's only redirect is now restricted to in-app paths) need major-version upgrades; not done yet.
+7. Backend dependency vulnerability scan (OWASP dependency-check) not run in this environment.
+8. In E2E, clicking a ticket action during the page transition could miss; the test waits for the page to settle. Not reproduced manually.
+9. Approximate IP geolocation is not enabled (no approved provider).
 
 ## Blocked tasks
 - Live verification of Jira / Salesforce / IMAP connectors — needs endpoints and credentials.
@@ -87,12 +100,12 @@ Run after the redesign with the installed skills; each finding was fixed and re-
 - Public deployment — not performed (out of scope for unattended work).
 
 ## Exact next steps
-1. Run the `security-review` and `code-review` skills on the full diff and fix findings.
-2. Add admin UI for notification rules, custom ticket fields and dashboard widget toggles.
-3. Add integration tests for automation actions and WireMock-based connector tests.
-4. Push and confirm the GitHub Actions workflow passes; build the multi-stage images in CI.
-5. Decide the open business rules in PROJECT_PLAN.md (break policy, holidays in attendance, retention, employee disputes).
-6. Configure SMTP and verify Project Lead emails before the next 1st of the month.
+1. Decide the open business rules in PROJECT_PLAN.md (break policy, holidays in attendance, retention, employee disputes).
+2. Provide Jira / Salesforce / mailbox endpoints and credentials to verify integrations live; add an IMAP test with a trusted test certificate.
+3. Configure the company SMTP relay and verify Project Lead emails before the next 1st of the month.
+4. Upgrade zod (3 → 4) and react-router (6 → 7) in a dedicated change; run OWASP dependency-check on the backend in CI.
+5. Push and confirm the GitHub Actions workflow; build the multi-stage images in CI.
+6. For more than one backend node: move the login rate limiter and session-revocation cache to a shared store.
 7. Reconcile with the original requirement PDF once it is added to `docs/requirements/`.
 
 ## How to run

@@ -92,7 +92,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody AuthDtos.ChangePasswordRequest req) {
-        auth.changePassword(CurrentUser.get().id(), req);
+        auth.changePassword(CurrentUser.get().id(), CurrentUser.get().sessionId(), req);
         return ResponseEntity.noContent().build();
     }
 

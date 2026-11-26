@@ -155,7 +155,7 @@ function BreakPolicies() {
       <CardContent className="px-0">
         {(data ?? []).length === 0 ? <EmptyState title="No break policies" description="Only the general limits from attendance settings apply." /> : (
           <div className="grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-3">{data!.map((p) => (
-            <div key={p.id} className={`rounded-2xl bg-muted/50 p-4 ${p.active ? '' : 'opacity-60'}`}>
+            <div key={p.id} className={`rounded-2xl bg-muted/50 p-4 ${p.active ? '' : 'outline-dashed outline-2 -outline-offset-2 outline-muted-foreground/40 shadow-none'}`}>
               <div className="flex items-start gap-3"><IconTile icon={Coffee} tone="amber" />
                 <div className="min-w-0 flex-1"><p className="font-semibold">{p.name}</p><p className="text-xs text-muted-foreground">{lk.projects.find((x) => x.id === p.projectId)?.name ?? 'All projects'} · {p.breakCategory ? titleCase(p.breakCategory) : 'Any type'}</p></div>
                 <Badge tone={p.active ? 'green' : 'neutral'}>{p.active ? 'Active' : 'Off'}</Badge></div>
@@ -410,7 +410,7 @@ function CustomFields() {
         {(data ?? []).length === 0 ? <EmptyState title="No custom fields yet" description="Add fields such as asset tag, site or contract number." /> : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {data!.map((f) => (
-              <div key={f.id} className={`flex flex-col rounded-2xl bg-muted/50 p-4 ${f.active ? '' : 'opacity-60'}`}>
+              <div key={f.id} className={`flex flex-col rounded-2xl bg-muted/50 p-4 ${f.active ? '' : 'outline-dashed outline-2 -outline-offset-2 outline-muted-foreground/40 shadow-none'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0"><p className="font-semibold">{f.label}</p><p className="truncate font-mono text-[11px] text-muted-foreground">{f.fieldKey}</p></div>
                   <div className="flex flex-wrap justify-end gap-1">{f.required && <Badge tone="amber">Required</Badge>}{!f.active && <Badge>Inactive</Badge>}</div>

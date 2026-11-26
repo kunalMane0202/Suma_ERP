@@ -35,7 +35,9 @@ export function LoginPage() {
       const me = await login(v.username, v.password);
       setTheme(me.themePreference === 'DARK' ? 'DARK' : 'LIGHT');
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from && from !== '/login' ? from : '/', { replace: true });
+      // only follow a plain in-app path (blocks //host and backslash tricks that browsers treat as external)
+      const safe = from && /^\/(?![/\\])[^\\]*$/.test(from) && from !== '/login' ? from : '/';
+      navigate(safe, { replace: true });
     } catch (e) {
       setError(errorMessage(e, 'Sign-in failed. Try again.'));
     }

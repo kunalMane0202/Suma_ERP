@@ -66,7 +66,7 @@ export default function AutomationPage() {
               {rules.data!.map((r) => {
                 const conds: Cond[] = JSON.parse(r.conditions); const acts: Act[] = JSON.parse(r.actions);
                 return (
-                  <GridCard key={r.id} className={r.active ? '' : 'opacity-60'}>
+                  <GridCard key={r.id} className={r.active ? '' : 'outline-dashed outline-2 -outline-offset-2 outline-muted-foreground/40 shadow-none'}>
                     <div className="flex items-start gap-3">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted font-display text-xs font-bold text-muted-foreground" title="Order">{r.priority}</span>
                       <div className="min-w-0 flex-1"><p className="font-semibold">{r.name}</p>{r.description && <p className="text-xs text-muted-foreground">{r.description}</p>}</div>

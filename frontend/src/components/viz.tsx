@@ -54,7 +54,7 @@ export function AvatarStack({ names, max = 5, className }: { names: string[]; ma
   return (
     <div className={cn('flex items-center', className)}>
       {shown.map((n, i) => <span key={n + i} title={n} className="-ml-2 first:ml-0"><Avatar name={n} /></span>)}
-      {names.length > max && <span className="-ml-2 grid h-9 w-9 place-items-center rounded-full bg-secondary text-[11px] font-bold ring-2 ring-card">+{names.length - max}</span>}
+      {names.length > max && <span className="-ml-2 grid h-9 w-9 place-items-center rounded-full bg-secondary text-[11px] font-bold text-foreground ring-2 ring-card">+{names.length - max}</span>}
     </div>
   );
 }

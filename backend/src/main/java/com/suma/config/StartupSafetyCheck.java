@@ -14,9 +14,11 @@ public class StartupSafetyCheck {
     static final String DEV_KEY = "ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzJieXRlcyE=";
     static final String DEV_ADMIN = "Admin@12345";
     private final SumaProperties props;
+    private final boolean apiDocsEnabled;
 
-    public StartupSafetyCheck(SumaProperties props) {
+    public StartupSafetyCheck(SumaProperties props, @org.springframework.beans.factory.annotation.Value("${springdoc.api-docs.enabled:true}") boolean apiDocsEnabled) {
         this.props = props;
+        this.apiDocsEnabled = apiDocsEnabled;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -30,6 +32,7 @@ public class StartupSafetyCheck {
         if (devJwt) log.warn("SECURITY: SUMA_JWT_SECRET is the development default. Set a random secret outside local development.");
         if (devKey) log.warn("SECURITY: SUMA_ENCRYPTION_KEY is the development default. Set a random key outside local development.");
         if (devAdmin) log.warn("SECURITY: bootstrap admin password is the development default. Set SUMA_ADMIN_PASSWORD and change it after first sign-in.");
+        if (props.cookieSecure() && apiDocsEnabled) log.warn("SECURITY: API documentation (Swagger UI, /v3/api-docs) is public in a production configuration. Set SUMA_API_DOCS_ENABLED=false.");
         if (props.demoData()) log.warn("DEMO DATA is enabled (SUMA_DEMO_DATA=true). Do not use this configuration in production.");
     }
 }

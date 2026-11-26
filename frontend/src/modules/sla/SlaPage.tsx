@@ -65,7 +65,7 @@ export default function SlaPage() {
       {(policies.data ?? []).length === 0 ? <Card><EmptyState title="No SLA policies" description="Tickets have no SLA clock until a policy exists for their priority." /></Card> : (
         <CardGrid className="xl:grid-cols-4">
           {(policies.data ?? []).map((p) => (
-            <GridCard key={p.id} className={`relative overflow-hidden ${p.active ? '' : 'opacity-50'}`}>
+            <GridCard key={p.id} className={`relative overflow-hidden ${p.active ? '' : 'outline-dashed outline-2 -outline-offset-2 outline-muted-foreground/40 shadow-none'}`}>
               <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: prio[p.priority] }} />
               <div className="flex items-start justify-between gap-2"><PriorityTag priority={p.priority} />{!p.active && <Badge>Inactive</Badge>}</div>
               <p className="mt-2 font-semibold leading-snug">{p.name}</p>

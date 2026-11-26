@@ -30,10 +30,13 @@ public class UserAdminService {
     private final AccessScopeService scope;
     private final SessionValidator sessionValidator;
     private final NamedParameterJdbcTemplate jdbc;
+    private final com.suma.auth.AuthService auth;
 
     public UserAdminService(UserRepository users, RoleRepository roles, PermissionRepository permissions, ShiftRepository shifts,
                             PasswordEncoder encoder, AuditService audit, AccessScopeService scope,
-                            SessionValidator sessionValidator, NamedParameterJdbcTemplate jdbc) {
+                            SessionValidator sessionValidator, NamedParameterJdbcTemplate jdbc,
+                            @org.springframework.context.annotation.Lazy com.suma.auth.AuthService auth) {
+        this.auth = auth;
         this.users = users;
         this.roles = roles;
         this.permissions = permissions;
@@ -43,6 +46,21 @@ public class UserAdminService {
         this.scope = scope;
         this.sessionValidator = sessionValidator;
         this.jdbc = jdbc;
+    }
+
+    /**
+     * Guards for delegated user management: a non-admin holding USER_WRITE may only manage non-admin users inside
+     * their own scope and may never create admins, so delegating the permission cannot become an admin takeover.
+     */
+    private void requireManageable(User target, String requestedRole) {
+        AuthUser me = CurrentUser.get();
+        if (me == null || me.isAdmin()) return;
+        if ("ADMIN".equals(requestedRole)) throw ApiException.forbidden("Only administrators can grant the administrator role");
+        if (target != null) {
+            if ("ADMIN".equals(target.roleCode())) throw ApiException.forbidden("Only administrators can change administrator accounts");
+            Set<UUID> visible = visibleUserIds(me);
+            if (visible != null && !visible.contains(target.getId())) throw ApiException.forbidden("This employee is outside your projects and teams");
+        }
     }
 
     /** Non-admins only see users that share a visible project or team with them. */
@@ -89,6 +107,7 @@ public class UserAdminService {
         if (users.existsByUsernameIgnoreCase(r.username())) throw ApiException.conflict("Username already exists");
         if (users.existsByEmailIgnoreCase(r.email())) throw ApiException.conflict("Email already exists");
         if (users.existsByEmployeeCodeIgnoreCase(r.employeeCode())) throw ApiException.conflict("Employee code already exists");
+        requireManageable(null, r.role());
         User u = new User();
         apply(u, r);
         u.setPasswordHash(encoder.encode(r.password()));
@@ -103,6 +122,7 @@ public class UserAdminService {
         if (!u.getUsername().equalsIgnoreCase(r.username()) && users.existsByUsernameIgnoreCase(r.username())) throw ApiException.conflict("Username already exists");
         if (!u.getEmail().equalsIgnoreCase(r.email()) && users.existsByEmailIgnoreCase(r.email())) throw ApiException.conflict("Email already exists");
         if (!u.getEmployeeCode().equalsIgnoreCase(r.employeeCode()) && users.existsByEmployeeCodeIgnoreCase(r.employeeCode())) throw ApiException.conflict("Employee code already exists");
+        requireManageable(u, r.role());
         String oldRole = u.roleCode();
         String oldStatus = u.getStatus();
         if (u.getId().equals(CurrentUser.id()) && (!r.role().equals(oldRole) || (r.status() != null && !"ACTIVE".equals(r.status()))))
@@ -119,15 +139,19 @@ public class UserAdminService {
     @Transactional
     public void resetPassword(UUID id, String newPassword) {
         User u = users.findById(id).orElseThrow(() -> ApiException.notFound("User"));
+        requireManageable(u, null);
         u.setPasswordHash(encoder.encode(newPassword));
         u.setFailedLoginCount(0);
         u.setLockedUntil(null);
-        audit.log("USER_PASSWORD_RESET", "User", id, null);
+        // anyone still signed in with the old password is signed out
+        int ended = auth.endOtherSessions(id, null, "Password reset by administrator", CurrentUser.id());
+        audit.log("USER_PASSWORD_RESET", "User", id, ended > 0 ? "Signed out " + ended + " session(s)" : null);
     }
 
     @Transactional
     public void unlock(UUID id) {
         User u = users.findById(id).orElseThrow(() -> ApiException.notFound("User"));
+        requireManageable(u, null);
         u.setFailedLoginCount(0);
         u.setLockedUntil(null);
         if ("LOCKED".equals(u.getStatus())) u.setStatus("ACTIVE");
@@ -195,6 +219,14 @@ public class UserAdminService {
     @Transactional
     public UserDtos.RoleResponse setRolePermissions(String code, Set<String> codes) {
         Role role = roles.findByCode(code).orElseThrow(() -> ApiException.notFound("Role"));
+        AuthUser me = CurrentUser.get();
+        if (me != null && !me.isAdmin()) {
+            // delegated role management cannot touch the admin role or hand out permissions the caller does not hold
+            if ("ADMIN".equals(code)) throw ApiException.forbidden("Only administrators can change the administrator role");
+            Set<String> current = role.getPermissions().stream().map(Permission::getCode).collect(Collectors.toSet());
+            for (String c : codes) if (!current.contains(c) && !me.has(c)) throw ApiException.forbidden("You cannot grant " + c + " because you do not hold it");
+            if (code.equals(me.role())) throw ApiException.forbidden("You cannot change the permissions of your own role");
+        }
         if ("ADMIN".equals(code) && !codes.containsAll(Set.of("ROLE_MANAGE", "SECURITY_MANAGE", "USER_WRITE")))
             throw ApiException.badRequest("ADMIN must keep ROLE_MANAGE, SECURITY_MANAGE and USER_WRITE to prevent lock-out");
         List<Permission> perms = permissions.findByCodeIn(codes);
