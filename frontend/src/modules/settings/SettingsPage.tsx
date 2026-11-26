@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, CheckCircle2, Clock, Coffee, FileText, Loader, Mail as MailIcon, MailCheck, MailX, Moon, Paperclip, Plus, RotateCw, SlidersHorizontal, Trash2, XCircle } from 'lucide-react';
+import { Bell, Check, CheckCircle2, LayoutGrid, ListPlus, Clock, Coffee, FileText, Loader, Mail as MailIcon, MailCheck, MailX, Moon, Paperclip, Plus, RotateCw, SlidersHorizontal, Trash2, XCircle } from 'lucide-react';
 import { FeedItem, IconTile } from '@/components/layout';
 import { Fragment, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -37,6 +37,8 @@ export default function SettingsPage() {
           {can('SETTINGS_MANAGE') && <TabsTrigger value="templates">Email templates</TabsTrigger>}
           {can('ROLE_MANAGE') && <TabsTrigger value="roles">Roles & permissions</TabsTrigger>}
           {can('SETTINGS_MANAGE') && <TabsTrigger value="jobs">Scheduled jobs</TabsTrigger>}
+          {can('SETTINGS_MANAGE') && <TabsTrigger value="fields">Custom fields</TabsTrigger>}
+          {can('NOTIFICATION_MANAGE') && <TabsTrigger value="rules">Notification rules</TabsTrigger>}
           {can('NOTIFICATION_MANAGE') && <TabsTrigger value="email">Email delivery</TabsTrigger>}
         </TabsList>
         <TabsContent value="attendance"><AttendanceSettingsTab /></TabsContent>
@@ -45,6 +47,8 @@ export default function SettingsPage() {
         <TabsContent value="templates"><Templates /></TabsContent>
         <TabsContent value="roles"><Roles /></TabsContent>
         <TabsContent value="jobs"><Jobs /></TabsContent>
+        <TabsContent value="fields"><CustomFields /></TabsContent>
+        <TabsContent value="rules"><NotificationRules /></TabsContent>
         <TabsContent value="email"><EmailLog /></TabsContent>
       </UrlTabs>
     </>
@@ -191,7 +195,8 @@ function SystemSettings() {
   const save = async (key: string) => {
     try { await api.put(`/settings/${key}`, { value: values[key] }); toast.success('Setting saved'); reload(); } catch (e) { toast.error(errorMessage(e)); }
   };
-  const groups = [...new Set((data ?? []).map((s) => s.category))];
+  const visible = (data ?? []).filter((s) => s.key !== 'dashboard.widgets');
+  const groups = [...new Set(visible.map((s) => s.category))];
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       <div className="space-y-4 xl:col-span-2">
@@ -199,7 +204,7 @@ function SystemSettings() {
           <Card key={g}>
             <CardHeader><div className="flex items-center gap-3"><IconTile icon={SlidersHorizontal} tone="soft" /><CardTitle>{titleCase(g)}</CardTitle></div></CardHeader>
             <CardContent className="space-y-2">
-              {data!.filter((s) => s.category === g).map((s) => (
+              {visible.filter((s) => s.category === g).map((s) => (
                 <div key={s.key} className="grid items-center gap-2 rounded-xl bg-muted/40 p-3 sm:grid-cols-[1fr_14rem_auto]">
                   <div><p className="text-sm font-medium">{s.description}</p><p className="font-mono text-xs text-muted-foreground">{s.key}</p></div>
                   <Input aria-label={s.description ?? s.key} type={s.valueType === 'NUMBER' ? 'number' : 'text'} value={values[s.key] ?? ''} onChange={(e) => setValues({ ...values, [s.key]: e.target.value })} />
@@ -211,6 +216,7 @@ function SystemSettings() {
         ))}
       </div>
       <div className="space-y-4">
+        {data && <DashboardWidgets value={(data.find((x) => x.key === 'dashboard.widgets')?.value) ?? ''} onSaved={reload} />}
         {ref.data && (['statuses', 'priorities'] as const).map((k) => (
           <Card key={k}>
             <CardHeader><div><CardTitle>Ticket {k}</CardTitle><CardDescription>Display labels and colours. The lifecycle itself is fixed.</CardDescription></div></CardHeader>
@@ -348,6 +354,140 @@ function EmailLog() {
           </>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+const WIDGETS: [string, string][] = [['kpis', 'Headline numbers'], ['trend', 'Ticket flow'], ['priority', 'Priority mix'], ['status', 'Where tickets are'], ['team', 'Team performance'], ['workforce', 'Workforce (who is working now)']];
+
+function DashboardWidgets({ value, onSaved }: { value: string; onSaved: () => void }) {
+  const enabled = new Set(value.split(',').map((x) => x.trim()).filter(Boolean));
+  const toggle = async (key: string, on: boolean) => {
+    const next = WIDGETS.map(([k]) => k).filter((k) => (k === key ? on : enabled.has(k)));
+    try { await api.put('/settings/dashboard.widgets', { value: next.join(',') }); toast.success('Dashboard updated for everyone'); onSaved(); } catch (e) { toast.error(errorMessage(e)); }
+  };
+  return (
+    <Card>
+      <CardHeader><div className="flex items-center gap-3"><IconTile icon={LayoutGrid} tone="soft" /><div><CardTitle>Dashboard widgets</CardTitle><CardDescription>Tiles shown on everyone's dashboard</CardDescription></div></div></CardHeader>
+      <CardContent className="space-y-1">
+        {WIDGETS.map(([k, label]) => (
+          <label key={k} className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm hover:bg-accent/60">
+            <span>{label}</span><Switch checked={enabled.has(k)} onCheckedChange={(on) => toggle(k, on)} aria-label={`Show ${label}`} />
+          </label>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface FieldDef { id: string; fieldKey: string; label: string; fieldType: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'BOOLEAN'; options?: string; required: boolean; projectId?: string; active: boolean }
+const FIELD_TYPES: [FieldDef['fieldType'], string][] = [['TEXT', 'Text'], ['NUMBER', 'Number'], ['DATE', 'Date'], ['SELECT', 'Choice list'], ['BOOLEAN', 'Yes / no']];
+
+function CustomFields() {
+  const lk = useLookups();
+  const { data, reload } = useApi<FieldDef[]>('/custom-fields/all');
+  const [edit, setEdit] = useState<Partial<FieldDef> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!edit) return;
+    setBusy(true);
+    try {
+      const body = { fieldKey: edit.fieldKey, label: edit.label, fieldType: edit.fieldType, options: edit.options, required: !!edit.required, projectId: edit.projectId || undefined, active: edit.active ?? true };
+      if (edit.id) await api.put(`/custom-fields/${edit.id}`, body); else await api.post('/custom-fields', body);
+      toast.success('Custom field saved'); setEdit(null); reload();
+    } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
+  };
+  const deactivate = async (f: FieldDef) => {
+    if (!window.confirm(`Stop using the field ${f.label}? Values already on tickets are kept.`)) return;
+    try { await api.delete(`/custom-fields/${f.id}`); toast.success('Field deactivated'); reload(); } catch (e) { toast.error(errorMessage(e)); }
+  };
+  const projectName = (id?: string) => (id ? lk.projects.find((p) => p.id === id)?.name ?? 'One project' : 'All projects');
+  return (
+    <Card>
+      <CardHeader><div className="flex items-center gap-3"><IconTile icon={ListPlus} tone="brand" /><div><CardTitle>Custom ticket fields</CardTitle><CardDescription>Extra fields on the ticket form, for every project or one project. Required fields are enforced when people create or edit tickets; integrations are never blocked.</CardDescription></div></div>
+        <Button size="sm" onClick={() => setEdit({ fieldType: 'TEXT', required: false, active: true })}><Plus /> Add field</Button></CardHeader>
+      <CardContent>
+        {(data ?? []).length === 0 ? <EmptyState title="No custom fields yet" description="Add fields such as asset tag, site or contract number." /> : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {data!.map((f) => (
+              <div key={f.id} className={`flex flex-col rounded-2xl bg-muted/50 p-4 ${f.active ? '' : 'opacity-60'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0"><p className="font-semibold">{f.label}</p><p className="truncate font-mono text-[11px] text-muted-foreground">{f.fieldKey}</p></div>
+                  <div className="flex flex-wrap justify-end gap-1">{f.required && <Badge tone="amber">Required</Badge>}{!f.active && <Badge>Inactive</Badge>}</div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{FIELD_TYPES.find(([t]) => t === f.fieldType)?.[1]}</span>
+                  <span className="rounded-full bg-card px-2.5 py-1 shadow-glass">{projectName(f.projectId)}</span>
+                </div>
+                {f.fieldType === 'SELECT' && f.options && <p className="mt-2 text-xs text-muted-foreground">Choices: {f.options}</p>}
+                <div className="mt-auto flex justify-end gap-1 pt-3">
+                  <Button variant="ghost" size="sm" onClick={() => setEdit(f)}>Edit</Button>
+                  {f.active && <Button variant="ghost" size="sm" onClick={() => deactivate(f)}>Deactivate</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.id ? 'Edit custom field' : 'Add custom field'}
+        footer={<><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button loading={busy} disabled={!edit?.label || !edit?.fieldKey || (edit.fieldType === 'SELECT' && !edit.options)} onClick={save}>Save field</Button></>}>
+        {edit && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Label" htmlFor="cf-label"><Input id="cf-label" value={edit.label ?? ''} onChange={(e) => setEdit({ ...edit, label: e.target.value, fieldKey: edit.id ? edit.fieldKey : e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, 'f_$1') })} /></Field>
+            <Field label="Key" htmlFor="cf-key" hint={edit.id ? 'Fixed once created' : 'Lower-case letters, digits and _'}><Input id="cf-key" className="font-mono" disabled={!!edit.id} spellCheck={false} value={edit.fieldKey ?? ''} onChange={(e) => setEdit({ ...edit, fieldKey: e.target.value })} /></Field>
+            <Field label="Type" htmlFor="cf-type"><NativeSelect id="cf-type" value={edit.fieldType} onChange={(e) => setEdit({ ...edit, fieldType: e.target.value as FieldDef['fieldType'] })}>{FIELD_TYPES.map(([t, l]) => <option key={t} value={t}>{l}</option>)}</NativeSelect></Field>
+            <Field label="Applies to" htmlFor="cf-proj"><NativeSelect id="cf-proj" value={edit.projectId ?? ''} onChange={(e) => setEdit({ ...edit, projectId: e.target.value || undefined })}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect></Field>
+            {edit.fieldType === 'SELECT' && <Field label="Choices" htmlFor="cf-opts" className="sm:col-span-2" hint="Separate with commas, e.g. Pune, Mumbai, Remote"><Input id="cf-opts" value={edit.options ?? ''} onChange={(e) => setEdit({ ...edit, options: e.target.value })} /></Field>}
+            <label className="flex items-center gap-2 text-sm"><Switch checked={!!edit.required} onCheckedChange={(v) => setEdit({ ...edit, required: v })} /> Required</label>
+            {edit.id && <label className="flex items-center gap-2 text-sm"><Switch checked={edit.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} /> Active</label>}
+          </div>
+        )}
+      </Dialog>
+    </Card>
+  );
+}
+
+interface NRule { id: string; projectId?: string; eventType: string; channel: 'IN_APP' | 'EMAIL' | 'BOTH'; active: boolean }
+const RULE_EVENTS: [string, string][] = [['TICKET_ASSIGNED', 'Ticket assigned to someone'], ['SLA_BREACH', 'SLA breached'], ['TICKET_ESCALATED', 'Ticket escalated'], ['CRITICAL_INCIDENT', 'Critical ticket created'], ['APPROVAL_REQUESTED', 'Approval requested']];
+
+function NotificationRules() {
+  const lk = useLookups();
+  const { data, reload } = useApi<NRule[]>('/notifications/rules');
+  const [form, setForm] = useState<{ eventType: string; projectId: string; channel: NRule['channel'] } | null>(null);
+  const save = async () => {
+    try { await api.post('/notifications/rules', { ...form, projectId: form!.projectId || undefined }); toast.success('Rule added'); setForm(null); reload(); } catch (e) { toast.error(errorMessage(e)); }
+  };
+  const remove = async (r: NRule) => {
+    if (!window.confirm('Delete this notification rule?')) return;
+    try { await api.delete(`/notifications/rules/${r.id}`); reload(); } catch (e) { toast.error(errorMessage(e)); }
+  };
+  const label = (e: string) => RULE_EVENTS.find(([k]) => k === e)?.[1] ?? titleCase(e);
+  return (
+    <Card>
+      <CardHeader><div className="flex items-center gap-3"><IconTile icon={Bell} tone="amber" /><div><CardTitle>Notification rules</CardTitle><CardDescription>In-app notifications are always sent. A rule with Email or Both also emails the people notified, for all projects or one project.</CardDescription></div></div>
+        <Button size="sm" onClick={() => setForm({ eventType: 'TICKET_ASSIGNED', projectId: '', channel: 'EMAIL' })}><Plus /> Add rule</Button></CardHeader>
+      <CardContent>
+        {(data ?? []).length === 0 ? <EmptyState title="No notification rules" description="Without rules, people get in-app notifications only." /> : (
+          <ul className="space-y-1">
+            {data!.map((r) => (
+              <FeedItem key={r.id} icon={r.channel === 'IN_APP' ? Bell : MailIcon} tone={r.channel === 'IN_APP' ? 'bg-primary/10 text-primary' : 'bg-ok/10 text-ok'}
+                title={<span className="font-semibold">{label(r.eventType)}</span>}
+                meta={<>{r.projectId ? lk.projects.find((p) => p.id === r.projectId)?.name ?? 'One project' : 'All projects'} · {r.channel === 'BOTH' ? 'In-app and email' : r.channel === 'EMAIL' ? 'Email' : 'In-app only'}{r.active ? '' : ' · inactive'}</>}
+                right={<Button variant="ghost" size="icon" aria-label={`Delete rule for ${label(r.eventType)}`} onClick={() => remove(r)}><Trash2 /></Button>} />
+            ))}
+          </ul>
+        )}
+      </CardContent>
+      <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)} title="Add notification rule"
+        footer={<><Button variant="outline" onClick={() => setForm(null)}>Cancel</Button><Button onClick={save}>Add rule</Button></>}>
+        {form && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="When" htmlFor="nr-event" className="sm:col-span-2"><NativeSelect id="nr-event" value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })}>{RULE_EVENTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</NativeSelect></Field>
+            <Field label="Project" htmlFor="nr-proj"><NativeSelect id="nr-proj" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect></Field>
+            <Field label="Send" htmlFor="nr-ch"><NativeSelect id="nr-ch" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value as NRule['channel'] })}><option value="EMAIL">Email</option><option value="BOTH">In-app and email</option><option value="IN_APP">In-app only</option></NativeSelect></Field>
+          </div>
+        )}
+      </Dialog>
     </Card>
   );
 }

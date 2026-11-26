@@ -96,13 +96,13 @@ public class SlaMonitorService {
             if (r.getEscalationLevel() <= t.getEscalationLevel()) continue;
             ticketService.escalateInternal(t, null, "Automatic escalation: " + trigger + (r.getThresholdPercent() != null ? " " + r.getThresholdPercent() + "%" : ""), r.getEscalationLevel());
             if (r.getNotifyUserId() != null) {
-                notifications.notify(r.getNotifyUserId(), "TICKET_ESCALATED", "Ticket " + t.getTicketNumber() + " escalated (L" + r.getEscalationLevel() + ")",
+                notifications.notifyWithRules(r.getNotifyUserId(), "TICKET_ESCALATED", t.getProjectId(), "Ticket " + t.getTicketNumber() + " escalated (L" + r.getEscalationLevel() + ")",
                         t.getTitle(), "WARNING", "Ticket", t.getId());
             }
             if (r.getNotifyRole() != null) {
                 List<UUID> ids = jdbc.queryForList("select u.id from users u join roles r on r.id = u.role_id join project_members pm on pm.user_id = u.id "
                         + "where r.code = ? and pm.project_id = ? and u.status = 'ACTIVE'", UUID.class, r.getNotifyRole(), t.getProjectId());
-                notifications.notifyAll(ids, "TICKET_ESCALATED", "Ticket " + t.getTicketNumber() + " escalated (L" + r.getEscalationLevel() + ")",
+                notifications.notifyAllWithRules(ids, "TICKET_ESCALATED", t.getProjectId(), "Ticket " + t.getTicketNumber() + " escalated (L" + r.getEscalationLevel() + ")",
                         t.getTitle(), "WARNING", "Ticket", t.getId());
             }
         }

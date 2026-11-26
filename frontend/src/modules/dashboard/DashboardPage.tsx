@@ -44,6 +44,9 @@ export default function DashboardPage() {
   const { data, error, loading, reload } = useApi<Summary>('/dashboard/summary', params, { interval: 120_000 });
   const k = data?.kpis;
   const wf = data?.workforce;
+  const ref = useApi<{ dashboardWidgets?: string }>('/settings/reference');
+  const widgets = (ref.data?.dashboardWidgets ?? 'kpis,trend,priority,status,team,workforce').split(',').map((w) => w.trim());
+  const on = (w: string) => widgets.includes(w);
   const set = (key: keyof typeof f) => (e: React.ChangeEvent<HTMLSelectElement>) => setF((x) => ({ ...x, [key]: e.target.value || undefined }));
 
   return (
@@ -78,6 +81,7 @@ export default function DashboardPage() {
       ) : k && data && (
         <motion.div className="grid grid-cols-1 gap-4 md:grid-cols-12" initial="hidden" animate="show"
           variants={{ show: { transition: { staggerChildren: 0.06 } } }}>
+          {on('kpis') && (<>
           {/* Hero: ticket volume */}
           <Bento className="md:col-span-7 xl:col-span-5 xl:row-span-2" tone="brand">
             <div className="relative flex h-full flex-col overflow-hidden p-6">
@@ -122,9 +126,10 @@ export default function DashboardPage() {
             <Stat index={3} label="Resolved" value={k.ticketsResolved} icon={<CheckCircle2 />} tone="ok" hint={`${k.avgResolutionHours}h average`} />
             <Stat index={4} label="Critical open" value={k.criticalOpen} icon={<Siren />} tone={k.criticalOpen ? 'breach' : 'default'} hint={<Link className="font-semibold text-primary hover:underline" to="/tickets">Open queue</Link>} />
           </div>
+          </>)}
 
           {/* Who's on now */}
-          {wf && (
+          {wf && on('workforce') && (
             <Bento className="md:col-span-5 xl:col-span-4" tone="ink">
               <div className="flex h-full flex-col p-6">
                 <div className="flex items-center justify-between">
@@ -145,8 +150,9 @@ export default function DashboardPage() {
             </Bento>
           )}
 
+          {on('trend') && (<>
           {/* Ticket flow */}
-          <Bento className={wf ? 'md:col-span-7 xl:col-span-8' : 'md:col-span-12'}>
+          <Bento className={wf && on('workforce') ? 'md:col-span-7 xl:col-span-8' : 'md:col-span-12'}>
             <CardHeader><div><CardTitle>Ticket flow</CardTitle><CardDescription>Received, resolved and breached per day</CardDescription></div>
               <div className="flex gap-3 text-xs text-muted-foreground"><Legend c={SERIES.received} l="Received" /><Legend c={SERIES.resolved} l="Resolved" /><Legend c={SERIES.breached} l="Breached" /></div></CardHeader>
             <CardContent className="h-[250px]">
@@ -167,7 +173,9 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </CardContent>
           </Bento>
+          </>)}
 
+          {on('priority') && (<>
           {/* Priority mix */}
           <Bento className="md:col-span-6 xl:col-span-4">
             <CardHeader><div><CardTitle>Priority mix</CardTitle><CardDescription>Tickets received in range</CardDescription></div></CardHeader>
@@ -191,7 +199,9 @@ export default function DashboardPage() {
               </ul>
             </CardContent>
           </Bento>
+          </>)}
 
+          {on('status') && (<>
           {/* Status */}
           <Bento className="md:col-span-6 xl:col-span-3">
             <CardHeader><div><CardTitle>Where tickets are</CardTitle><CardDescription>Current status of received tickets</CardDescription></div></CardHeader>
@@ -209,7 +219,9 @@ export default function DashboardPage() {
               })()}
             </CardContent>
           </Bento>
+          </>)}
 
+          {on('team') && (<>
           {/* Team leaderboard */}
           <Bento className="md:col-span-12 xl:col-span-5">
             <CardHeader><div><CardTitle>Team performance</CardTitle><CardDescription>Open load, throughput and breaches</CardDescription></div><Trophy className="h-4 w-4 text-warn" /></CardHeader>
@@ -225,9 +237,10 @@ export default function DashboardPage() {
               ))}
             </CardContent>
           </Bento>
+          </>)}
 
           {/* Workforce strip */}
-          {wf && (
+          {wf && on('workforce') && (
             <Bento className="md:col-span-12">
               <div className="flex flex-wrap items-center gap-x-8 gap-y-4 px-6 py-5">
                 <div><p className="font-display text-[16px] font-semibold">Workforce today</p><p className="text-xs text-muted-foreground">{wf.date} · {wf.employeesInScope} people in scope</p></div>

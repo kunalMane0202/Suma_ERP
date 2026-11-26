@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Ticket as TicketIcon } from 'lucide-react';
+import { CustomFieldInputs, missingRequired, useCustomFields } from './customFields';
 import { CardGrid, FilterBar, GridCard, HeroBanner, SearchField, SegmentedControl } from '@/components/layout';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -172,15 +173,24 @@ export function CreateTicketDialog({ open, onOpenChange }: { open: boolean; onOp
   const projects = lk.projects.length ? lk.projects.filter((p) => p.status === 'ACTIVE') : (user?.projects ?? []).map((p) => ({ id: p.id, name: p.name }));
   const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { priority: 'MEDIUM' } });
   const projectId = watch('projectId');
+  const fieldDefs = useCustomFields(projectId);
+  const [cf, setCf] = useState<Record<string, string>>({});
+  const [cfTried, setCfTried] = useState(false);
+  useEffect(() => { setCf({}); setCfTried(false); }, [projectId]);
   useEffect(() => {
     if (!projectId) { setCats([]); return; }
     api.get<Category[]>(`/projects/${projectId}/categories`).then((r) => setCats(r.data)).catch(() => setCats([]));
   }, [projectId]);
   const submit = async (v: Form) => {
+    setCfTried(true);
+    const missing = missingRequired(fieldDefs, cf);
+    if (missing.length) { toast.error(`${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} required`); return; }
+    const customFields = Object.fromEntries(Object.entries(cf).filter(([, x]) => x !== ''));
     try {
-      const r = await api.post<TicketDetail>('/tickets', { ...v, categoryId: v.categoryId || undefined, reporterEmail: v.reporterEmail || undefined });
+      const r = await api.post<TicketDetail>('/tickets', { ...v, categoryId: v.categoryId || undefined, reporterEmail: v.reporterEmail || undefined, customFields });
       toast.success(`Ticket ${r.data.summary.ticketNumber} created`);
       reset();
+      setCf({});
       onOpenChange(false);
       navigate(`/tickets/${r.data.summary.id}`);
     } catch (e) {
@@ -204,6 +214,7 @@ export function CreateTicketDialog({ open, onOpenChange }: { open: boolean; onOp
         </Field>
         <Field label="Reported by" htmlFor="t-rep"><Input id="t-rep" {...register('reporterName')} /></Field>
         <Field label="Reporter email" htmlFor="t-repe" error={errors.reporterEmail?.message} className="sm:col-span-2"><Input id="t-repe" type="email" {...register('reporterEmail')} /></Field>
+        <CustomFieldInputs defs={fieldDefs} values={cf} onChange={setCf} showErrors={cfTried} />
       </form>
     </Dialog>
   );

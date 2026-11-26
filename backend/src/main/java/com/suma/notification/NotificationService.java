@@ -54,6 +54,13 @@ public class NotificationService {
         userIds.stream().distinct().forEach(u -> notify(u, type, title, message, severity, entityType, entityId));
     }
 
+    /** In-app notification for each user, plus email where a notification rule for this event/project asks for it. */
+    @Transactional
+    public void notifyAllWithRules(Collection<UUID> userIds, String event, UUID projectId, String title, String message, String severity,
+                                   String entityType, Object entityId) {
+        userIds.stream().filter(java.util.Objects::nonNull).distinct().forEach(u -> notifyWithRules(u, event, projectId, title, message, severity, entityType, entityId));
+    }
+
     /** Sends email to a user if a notification rule for this event/project asks for EMAIL or BOTH. */
     @Transactional
     public void notifyWithRules(UUID userId, String event, UUID projectId, String title, String message, String severity,

@@ -62,12 +62,15 @@ public class TicketService {
     private final ObjectMapper mapper;
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    private final com.suma.ticket.field.CustomFieldService customFields;
 
     public TicketService(TicketRepository tickets, TicketCommentRepository comments, TicketAttachmentRepository attachments,
                          TicketHistoryRepository history, ProjectRepository projects, ClientRepository clients,
                          TicketCategoryRepository categories, TeamRepository teams, UserRepository users, SlaService sla,
                          AccessScopeService scope, NotificationService notifications, AuditService audit,
-                         ApplicationEventPublisher events, ObjectMapper mapper, JdbcTemplate jdbc, Clock clock) {
+                         ApplicationEventPublisher events, ObjectMapper mapper, JdbcTemplate jdbc, Clock clock,
+                         com.suma.ticket.field.CustomFieldService customFields) {
+        this.customFields = customFields;
         this.tickets = tickets;
         this.comments = comments;
         this.attachments = attachments;
@@ -191,7 +194,8 @@ public class TicketService {
         t.setExternalSystem(externalSystem);
         t.setExternalId(externalId);
         t.setCreatedBy(actorId);
-        t.setCustomFields(writeFields(r.customFields()));
+        // required custom fields are enforced for people creating tickets; integrations are never blocked by them
+        t.setCustomFields(writeFields(customFields.clean(p.getId(), r.customFields(), "MANUAL".equals(source))));
         t.setCreatedAt(now);
         t.setUpdatedAt(now);
         applySla(t, p, now);
@@ -203,7 +207,7 @@ public class TicketService {
             Set<UUID> notify = new HashSet<>();
             if (p.getManagerId() != null) notify.add(p.getManagerId());
             if (p.getTeamLeaderId() != null) notify.add(p.getTeamLeaderId());
-            notifications.notifyAll(notify, "CRITICAL_INCIDENT", "Critical ticket " + t.getTicketNumber(), t.getTitle(), "CRITICAL", "Ticket", t.getId());
+            notifications.notifyAllWithRules(notify, "CRITICAL_INCIDENT", t.getProjectId(), "Critical ticket " + t.getTicketNumber(), t.getTitle(), "CRITICAL", "Ticket", t.getId());
         }
         return t;
     }
@@ -226,7 +230,11 @@ public class TicketService {
             t.setSubcategoryId(r.subcategoryId());
         }
         if (r.teamId() != null && !r.teamId().equals(t.getTeamId())) { record(t, me.id(), "UPDATED", "team", null, r.teamId().toString(), null); t.setTeamId(r.teamId()); }
-        if (r.customFields() != null) t.setCustomFields(writeFields(r.customFields()));
+        if (r.customFields() != null) {
+            String before = t.getCustomFields();
+            t.setCustomFields(writeFields(customFields.clean(t.getProjectId(), r.customFields(), true)));
+            if (!java.util.Objects.equals(before, t.getCustomFields())) record(t, me.id(), "UPDATED", "customFields", null, null, "Custom fields edited");
+        }
         t.setUpdatedAt(now);
         events.publishEvent(new TicketEvent("TICKET_UPDATED", t.getId(), me.id(), null));
         return detail(t);
@@ -335,7 +343,7 @@ public class TicketService {
         if (p.getTeamLeaderId() != null) notify.add(p.getTeamLeaderId());
         if (level >= 2 && p.getManagerId() != null) notify.add(p.getManagerId());
         if (t.getAssigneeId() != null) notify.add(t.getAssigneeId());
-        notifications.notifyAll(notify, "TICKET_ESCALATED", "Ticket " + t.getTicketNumber() + " escalated to L" + level,
+        notifications.notifyAllWithRules(notify, "TICKET_ESCALATED", t.getProjectId(), "Ticket " + t.getTicketNumber() + " escalated to L" + level,
                 reason, level >= 2 ? "CRITICAL" : "WARNING", "Ticket", t.getId());
     }
 

@@ -206,7 +206,7 @@ public class RuleEngine {
                     ar.setApproverId(UUID.fromString(str(a, "approverId")));
                     ar.setReason(Objects.toString(a.get("reason"), r.getName()));
                     approvals.save(ar);
-                    notifications.notify(ar.getApproverId(), "APPROVAL_REQUESTED", "Approval requested: " + t.getTicketNumber(), ar.getReason(), "WARNING", "Ticket", t.getId());
+                    notifications.notifyWithRules(ar.getApproverId(), "APPROVAL_REQUESTED", t.getProjectId(), "Approval requested: " + t.getTicketNumber(), ar.getReason(), "WARNING", "Ticket", t.getId());
                     ticketService.record(t, null, "APPROVAL_REQUESTED", null, null, null, ar.getReason());
                     done.add("approval requested");
                 }

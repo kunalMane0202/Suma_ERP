@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, Can, ErrorState, PriorityTag, SlaBadge, StatusBadge } from '@/components/common';
 import { KeyValue } from '@/components/layout';
+import { formatCustomValue, useCustomFields } from './customFields';
 import { RadialGauge } from '@/components/viz';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
@@ -24,6 +25,7 @@ export default function TicketDetailPage() {
   const { user } = useAuth();
   const { data, error, loading, reload, setData } = useApi<TicketDetail>(`/tickets/${id}`);
   const project = useApi<Project>(data ? `/projects/${data.summary.projectId}` : null);
+  const fieldDefs = useCustomFields(data?.summary.projectId);
   const [comment, setComment] = useState('');
   const [internal, setInternal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -184,6 +186,7 @@ export default function TicketDetailPage() {
                 ['Created', dateTime(t.createdAt)], ['Age', <span className="num">{t.ageHours} h</span>],
                 ...(data.externalId ? [['External ref', `${data.externalSystem}: ${data.externalId}`]] : []),
                 ...(data.reopenedCount > 0 ? [['Reopened', `${data.reopenedCount}×`]] : []),
+                ...Object.entries(data.customFields ?? {}).map(([k, v]) => { const d = fieldDefs.find((x) => x.fieldKey === k); return [d?.label ?? k, formatCustomValue(d, v)]; }),
               ] as [React.ReactNode, React.ReactNode][])} />
             </CardContent>
           </Card>
