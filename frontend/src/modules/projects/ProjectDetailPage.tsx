@@ -1,4 +1,5 @@
-import { ArrowLeft, CheckCircle2, CircleAlert, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CircleAlert, FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
+import { HeroBanner, KeyValue } from '@/components/layout';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -10,7 +11,7 @@ import { Field } from '@/components/ui/label';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Can, ErrorState, PageHeader } from '@/components/common';
+import { Avatar, Can, ErrorState } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { invalidateLookups, useLookups } from '@/hooks/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,19 +64,22 @@ export default function ProjectDetailPage() {
   return (
     <>
       <Link to="/projects" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Projects</Link>
-      <PageHeader title={p.name} description={`${p.code} · ${p.clientName} · ${p.supportHours ?? 'support hours not set'} · ${p.timezone}`}
-        actions={<Can permission="PROJECT_WRITE"><Button variant="outline" onClick={() => setEdit(true)}><Pencil /> Edit project</Button></Can>} />
+      <HeroBanner icon={FolderKanban} title={p.name} subtitle={`${p.code} · ${p.clientName} · ${p.supportHours ?? 'support hours not set'} · ${p.timezone}`}
+        metrics={[{ label: 'People', value: p.memberCount }, { label: 'Open tickets', value: p.openTickets }, { label: 'All tickets', value: p.totalTickets }, { label: 'Categories', value: (cats.data ?? []).length }]}
+        action={<Can permission="PROJECT_WRITE"><Button variant="outline" className="bg-white/15 text-white shadow-none hover:bg-white/25" onClick={() => setEdit(true)}><Pencil /> Edit project</Button></Can>} />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Leadership</CardTitle></CardHeader>
           <CardContent>
-            <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Manager</dt><dd>{p.managerName ?? '—'}</dd>
-              <dt className="text-muted-foreground">Team leader</dt><dd>{p.teamLeaderName ?? '—'}</dd>
-              <dt className="text-muted-foreground">Project Lead</dt><dd>{p.projectLeadName ?? '—'}</dd>
-              <dt className="text-muted-foreground">Status</dt><dd><Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{titleCase(p.status)}</Badge></dd>
-              <dt className="text-muted-foreground">Period</dt><dd>{date(p.startDate)} – {p.endDate ? date(p.endDate) : 'ongoing'}</dd>
-            </dl>
+            <ul className="space-y-2">
+              {([['Manager', p.managerName], ['Team leader', p.teamLeaderName], ['Project Lead', p.projectLeadName]] as [string, string | undefined][]).map(([r, n]) => (
+                <li key={r} className="flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
+                  {n ? <Avatar name={n} /> : <span className="h-9 w-9 rounded-full bg-muted" />}
+                  <div><p className="text-xs text-muted-foreground">{r}</p><p className="font-semibold">{n ?? 'Not set'}</p></div>
+                </li>
+              ))}
+            </ul>
+            <KeyValue className="mt-3" items={[['Status', <Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{titleCase(p.status)}</Badge>], ['Period', `${date(p.startDate)} – ${p.endDate ? date(p.endDate) : 'ongoing'}`]]} />
           </CardContent>
         </Card>
         <Card>
@@ -92,13 +96,11 @@ export default function ProjectDetailPage() {
             ) : <p className="text-sm text-muted-foreground">No Project Lead email configured. Edit the project to add one.</p>}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader><CardTitle>Workload</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <div><p className="text-xs text-muted-foreground">People</p><p className="num text-2xl font-semibold">{p.memberCount}</p></div>
-            <div><p className="text-xs text-muted-foreground">Open tickets</p><p className="num text-2xl font-semibold">{p.openTickets}</p></div>
-            <div><p className="text-xs text-muted-foreground">All tickets</p><p className="num text-2xl font-semibold">{p.totalTickets}</p></div>
-            <Link to={`/tickets?projectId=${p.id}`} className="self-end text-sm text-primary hover:underline">Open queue</Link>
+        <Card tone="tint">
+          <CardHeader><CardTitle>Ticket queue</CardTitle></CardHeader>
+          <CardContent>
+            <p className="display-num text-[44px] leading-none">{p.openTickets}</p><p className="text-sm text-muted-foreground">open of {p.totalTickets} tickets</p>
+            <Button asChild className="mt-4"><Link to={`/tickets?projectId=${p.id}`}>Open queue</Link></Button>
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -109,7 +111,7 @@ export default function ProjectDetailPage() {
               <THead><TR><TH>Name</TH><TH>Role</TH><TH>Designation</TH><TH className="text-right">Allocation</TH><TH>Primary</TH><TH /></TR></THead>
               <TBody>
                 {(p.members ?? []).map((m) => (
-                  <TR key={m.userId}><TD><p className="font-medium">{m.fullName}</p><p className="text-xs text-muted-foreground">{m.employeeCode}</p></TD><TD>{m.role}</TD>
+                  <TR key={m.userId}><TD><div className="flex items-center gap-3"><Avatar name={m.fullName} className="h-8 w-8 text-[10px]" /><div><p className="font-semibold">{m.fullName}</p><p className="text-xs text-muted-foreground">{m.employeeCode}</p></div></div></TD><TD>{m.role}</TD>
                     <TD><Badge tone={m.designation === 'PROJECT_LEAD' ? 'navy' : m.designation === 'MEMBER' ? 'neutral' : 'blue'}>{titleCase(m.designation)}</Badge></TD>
                     <TD className="num text-right">{m.allocationPercent}%</TD><TD>{m.primary ? 'Yes' : ''}</TD>
                     <TD className="text-right"><Can permission="PROJECT_WRITE"><Button variant="ghost" size="icon" aria-label={`Remove ${m.fullName}`} onClick={() => removeMember(m.userId)}><Trash2 /></Button></Can></TD></TR>
@@ -123,8 +125,8 @@ export default function ProjectDetailPage() {
           <CardContent>
             <ul className="space-y-1.5 text-sm">
               {(cats.data ?? []).filter((c) => !c.parentId).map((c) => (
-                <li key={c.id}><span className="font-medium">{c.name}</span>{c.keywords && <span className="block text-xs text-muted-foreground">{c.keywords}</span>}
-                  <ul className="ml-4 mt-1 space-y-0.5">{(cats.data ?? []).filter((s) => s.parentId === c.id).map((s) => <li key={s.id} className="text-muted-foreground">↳ {s.name}</li>)}</ul></li>
+                <li key={c.id} className="rounded-xl bg-muted/60 p-3"><span className="font-semibold">{c.name}</span>{c.keywords && <span className="mt-0.5 block text-xs text-muted-foreground">{c.keywords}</span>}
+                  <div className="mt-2 flex flex-wrap gap-1">{(cats.data ?? []).filter((s) => s.parentId === c.id).map((s) => <span key={s.id} className="rounded-full bg-card px-2.5 py-0.5 text-xs font-medium shadow-glass">{s.name}</span>)}</div></li>
               ))}
             </ul>
             <Can permission="PROJECT_WRITE">

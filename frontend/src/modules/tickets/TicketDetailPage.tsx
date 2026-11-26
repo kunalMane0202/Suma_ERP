@@ -11,6 +11,9 @@ import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, Can, ErrorState, PriorityTag, SlaBadge, StatusBadge } from '@/components/common';
+import { KeyValue } from '@/components/layout';
+import { RadialGauge } from '@/components/viz';
+import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { api, download, errorMessage } from '@/services/api';
 import { dateTime, relative, titleCase } from '@/utils/format';
@@ -18,6 +21,7 @@ import type { ProjectMember, Project, TicketDetail, TicketStatus } from '@/types
 
 export default function TicketDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const { data, error, loading, reload, setData } = useApi<TicketDetail>(`/tickets/${id}`);
   const project = useApi<Project>(data ? `/projects/${data.summary.projectId}` : null);
   const [comment, setComment] = useState('');
@@ -78,25 +82,28 @@ export default function TicketDetailPage() {
   return (
     <>
       <Link to="/tickets" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Tickets</Link>
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="num text-sm text-muted-foreground">{t.ticketNumber} · {t.projectName} · {t.clientName}</p>
-          <h1 className="mt-1 text-[22px] font-semibold leading-snug">{t.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2"><StatusBadge status={t.status} /><PriorityTag priority={t.priority} /><SlaBadge sla={t.sla} />
-            {t.escalationLevel > 0 && <Badge tone="red">Escalated L{t.escalationLevel}</Badge>}<Badge>{titleCase(t.source)}</Badge></div>
+      <Card tone="brand" className="relative mb-5 overflow-hidden">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-4 p-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="num text-sm text-white/75">{t.ticketNumber} · {t.projectName} · {t.clientName}</p>
+            <h1 className="mt-1 text-[26px] font-semibold leading-snug">{t.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 [&>span]:bg-white/90"><StatusBadge status={t.status} /><span className="rounded-full px-2.5 py-0.5"><PriorityTag priority={t.priority} /></span><SlaBadge sla={t.sla} />
+              {t.escalationLevel > 0 && <Badge tone="red">Escalated L{t.escalationLevel}</Badge>}<Badge>{titleCase(t.source)}</Badge></div>
+          </div>
+          <div className="flex flex-wrap gap-2 [&_button]:bg-white/15 [&_button]:text-white [&_button]:shadow-none hover:[&_button]:bg-white/25">
+            <Can permission="TICKET_UPDATE">
+              {data.allowedTransitions.map((s) => (
+                <Button key={s} size="sm" variant="outline" onClick={() => { setTransition(s); setNote(''); }}>
+                  {s === 'IN_PROGRESS' ? 'Start work' : s === 'RESOLVED' ? 'Resolve' : s === 'CLOSED' ? 'Close' : s === 'REOPENED' ? 'Reopen' : s === 'PENDING' ? 'Set pending' : `Move to ${titleCase(s).toLowerCase()}`}
+                </Button>
+              ))}
+            </Can>
+            <Can permission="TICKET_ASSIGN"><Button size="sm" variant="outline" onClick={() => { setAssignee(t.assigneeId ?? ''); setAssignOpen(true); }}><UserPlus /> Assign</Button></Can>
+            <Can permission="TICKET_ESCALATE"><Button size="sm" variant="outline" onClick={() => { setNote(''); setEscalateOpen(true); }}><ShieldAlert /> Escalate</Button></Can>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Can permission="TICKET_UPDATE">
-            {data.allowedTransitions.map((s) => (
-              <Button key={s} size="sm" variant={s === 'RESOLVED' ? 'default' : 'outline'} onClick={() => { setTransition(s); setNote(''); }}>
-                {s === 'IN_PROGRESS' ? 'Start work' : s === 'RESOLVED' ? 'Resolve' : s === 'CLOSED' ? 'Close' : s === 'REOPENED' ? 'Reopen' : s === 'PENDING' ? 'Set pending' : `Move to ${titleCase(s).toLowerCase()}`}
-              </Button>
-            ))}
-          </Can>
-          <Can permission="TICKET_ASSIGN"><Button size="sm" variant="outline" onClick={() => { setAssignee(t.assigneeId ?? ''); setAssignOpen(true); }}><UserPlus /> Assign</Button></Can>
-          <Can permission="TICKET_ESCALATE"><Button size="sm" variant="outline" onClick={() => { setNote(''); setEscalateOpen(true); }}><ShieldAlert /> Escalate</Button></Can>
-        </div>
-      </div>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
@@ -109,10 +116,10 @@ export default function TicketDetailPage() {
             <CardContent className="space-y-4">
               {data.comments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
               {data.comments.map((c) => (
-                <div key={c.id} className={`flex gap-3 rounded-md p-3 ${c.internal ? 'border border-warn/30 bg-warn/5' : 'bg-muted/40'}`}>
+                <div key={c.id} className={`flex gap-3 ${c.authorId === user?.id ? 'flex-row-reverse' : ''}`}>
                   <Avatar name={c.authorName ?? 'System'} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm"><span className="font-medium">{c.authorName ?? 'Automation'}</span> <span className="text-xs text-muted-foreground">{relative(c.createdAt)}{c.internal ? ' · internal note' : ''}</span></p>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${c.internal ? 'bg-warn/15 ring-1 ring-warn/30' : c.authorId === user?.id ? 'rounded-tr-md bg-brand text-white' : 'rounded-tl-md bg-muted'}`}>
+                    <p className={`text-xs ${c.authorId === user?.id && !c.internal ? 'text-white/75' : 'text-muted-foreground'}`}><span className="font-semibold">{c.authorName ?? 'Automation'}</span> · {relative(c.createdAt)}{c.internal ? ' · internal note' : ''}</p>
                     <p className="mt-1 whitespace-pre-wrap text-sm">{c.body}</p>
                   </div>
                 </div>
@@ -135,10 +142,10 @@ export default function TicketDetailPage() {
           <Card>
             <CardHeader><CardTitle>Activity timeline</CardTitle></CardHeader>
             <CardContent>
-              <ol className="relative space-y-3 border-l pl-5">
+              <ol className="relative ml-2 space-y-4 border-l-2 border-dashed border-border pl-6">
                 {data.history.map((h) => (
                   <li key={h.id} className="relative text-sm">
-                    <span className="absolute -left-[25px] top-1.5 h-2 w-2 rounded-full bg-primary ring-4 ring-card" />
+                    <span className={`absolute -left-[33px] top-0.5 h-4 w-4 rounded-full ring-4 ring-card ${DOT[h.action] ?? 'bg-primary'}`} />
                     <p><span className="font-medium">{h.actorName ?? 'System'}</span> {describe(h)}</p>
                     {h.note && <p className="text-xs text-muted-foreground">{h.note}</p>}
                     <p className="text-xs text-muted-foreground">{dateTime(h.createdAt)}</p>
@@ -150,31 +157,34 @@ export default function TicketDetailPage() {
         </div>
         <div className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+            <CardHeader><CardTitle>SLA</CardTitle><span className="text-xs text-muted-foreground">{t.sla.policyName ?? 'No policy'}</span></CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
-                <dt className="text-muted-foreground">Assignee</dt><dd>{t.assigneeName ?? 'Unassigned'}</dd>
-                <dt className="text-muted-foreground">Team</dt><dd>{t.teamName ?? '—'}</dd>
-                <dt className="text-muted-foreground">Category</dt><dd>{t.categoryName ?? '—'}</dd>
-                <dt className="text-muted-foreground">Reporter</dt><dd>{data.reporterName ?? '—'}{data.reporterEmail && <span className="block text-xs text-muted-foreground">{data.reporterEmail}</span>}</dd>
-                <dt className="text-muted-foreground">Created</dt><dd>{dateTime(t.createdAt)}</dd>
-                <dt className="text-muted-foreground">Age</dt><dd className="num">{t.ageHours} h</dd>
-                {data.externalId && <><dt className="text-muted-foreground">External ref</dt><dd>{data.externalSystem}: {data.externalId}</dd></>}
-                {data.reopenedCount > 0 && <><dt className="text-muted-foreground">Reopened</dt><dd>{data.reopenedCount}×</dd></>}
-              </dl>
+              <div className="flex items-center gap-5">
+                <RadialGauge size={112} stroke={11} value={slaUsed(t)} tone={t.sla.state === 'BREACHED' ? 'breach' : t.sla.state === 'AT_RISK' ? 'warn' : t.sla.state === 'MET' ? 'ok' : 'brand'}
+                  label={<span className="display-num text-xl">{Math.round(slaUsed(t))}%</span>} sublabel="time used" />
+                <div className="space-y-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Response due</span><br /><span className={t.sla.responseBreached ? 'font-semibold text-breach' : 'font-medium'}>{dateTime(t.sla.responseDueAt)}</span></p>
+                  <p><span className="text-muted-foreground">Resolution due</span><br /><span className={t.sla.resolutionBreached ? 'font-semibold text-breach' : 'font-medium'}>{dateTime(t.sla.resolutionDueAt)}</span></p>
+                </div>
+              </div>
+              <KeyValue className="mt-4" items={[['First response', dateTime(t.sla.firstResponseAt)], ['Resolved', dateTime(data.resolvedAt)]]} />
+              {t.sla.paused && <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">The SLA clock is paused while this ticket is pending.</p>}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>SLA</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
-                <dt className="text-muted-foreground">Policy</dt><dd>{t.sla.policyName ?? 'None'}</dd>
-                <dt className="text-muted-foreground">Response due</dt><dd className={t.sla.responseBreached ? 'text-breach' : ''}>{dateTime(t.sla.responseDueAt)}</dd>
-                <dt className="text-muted-foreground">First response</dt><dd>{dateTime(t.sla.firstResponseAt)}</dd>
-                <dt className="text-muted-foreground">Resolution due</dt><dd className={t.sla.resolutionBreached ? 'text-breach' : ''}>{dateTime(t.sla.resolutionDueAt)}</dd>
-                <dt className="text-muted-foreground">Resolved</dt><dd>{dateTime(data.resolvedAt)}</dd>
-              </dl>
-              {t.sla.paused && <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">The SLA clock is paused while this ticket is pending.</p>}
+              <div className="mb-4 flex items-center gap-3 rounded-xl bg-brand-soft p-3">
+                {t.assigneeName ? <Avatar name={t.assigneeName} /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground"><UserPlus className="h-4 w-4" /></span>}
+                <div><p className="text-xs text-muted-foreground">Assignee</p><p className="font-semibold">{t.assigneeName ?? 'Unassigned'}</p></div>
+              </div>
+              <KeyValue items={([
+                ['Team', t.teamName ?? '—'], ['Category', t.categoryName ?? '—'],
+                ['Reporter', <>{data.reporterName ?? '—'}{data.reporterEmail && <span className="block text-xs font-normal text-muted-foreground">{data.reporterEmail}</span>}</>],
+                ['Created', dateTime(t.createdAt)], ['Age', <span className="num">{t.ageHours} h</span>],
+                ...(data.externalId ? [['External ref', `${data.externalSystem}: ${data.externalId}`]] : []),
+                ...(data.reopenedCount > 0 ? [['Reopened', `${data.reopenedCount}×`]] : []),
+              ] as [React.ReactNode, React.ReactNode][])} />
             </CardContent>
           </Card>
           <Card>
@@ -183,7 +193,7 @@ export default function TicketDetailPage() {
               {data.attachments.length === 0 ? <p className="text-sm text-muted-foreground">No attachments.</p> : (
                 <ul className="space-y-1.5">
                   {data.attachments.map((a) => (
-                    <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                    <li key={a.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/60 px-3 py-2 text-sm">
                       <span className="truncate">{a.fileName} <span className="text-xs text-muted-foreground">({Math.ceil(a.sizeBytes / 1024)} KB)</span></span>
                       <Button variant="ghost" size="icon" aria-label={`Download ${a.fileName}`} onClick={() => download(`/tickets/${id}/attachments/${a.id}`).catch((e) => toast.error(errorMessage(e)))}><Download /></Button>
                     </li>
@@ -217,6 +227,16 @@ export default function TicketDetailPage() {
       </Dialog>
     </>
   );
+}
+
+const DOT: Record<string, string> = { CREATED: 'bg-sky', STATUS_CHANGED: 'bg-primary', ASSIGNED: 'bg-idle', REASSIGNED: 'bg-idle', ESCALATED: 'bg-breach',
+  SLA_BREACHED: 'bg-breach', FIRST_RESPONSE: 'bg-ok', COMMENTED: 'bg-muted-foreground/50', ATTACHMENT_ADDED: 'bg-warn', UPDATED: 'bg-primary/60' };
+
+function slaUsed(t: TicketDetail['summary']) {
+  if (!t.sla.resolutionDueAt) return 0;
+  const start = new Date(t.createdAt).getTime();
+  const due = new Date(t.sla.resolutionDueAt).getTime();
+  return Math.max(0, Math.min(100, ((Date.now() - start) / Math.max(1, due - start)) * 100));
 }
 
 function describe(h: TicketDetail['history'][number]) {

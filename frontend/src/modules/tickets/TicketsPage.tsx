@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Ticket as TicketIcon } from 'lucide-react';
+import { CardGrid, FilterBar, GridCard, HeroBanner, SearchField, SegmentedControl } from '@/components/layout';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -12,13 +13,38 @@ import { Field } from '@/components/ui/label';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import { Can, EmptyState, ErrorState, PageHeader, Pagination, PriorityTag, SlaBadge, StatusBadge } from '@/components/common';
+import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination, PriorityTag, SlaBadge, StatusBadge } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, errorMessage } from '@/services/api';
 import { relative } from '@/utils/format';
 import type { Category, Page, TicketDetail, TicketSummary } from '@/types/api';
+
+function useTicketCounts() {
+  const [c, setC] = useState({ open: 0, unassigned: 0, overdue: 0, breached: 0 });
+  useEffect(() => {
+    const q = (p: Record<string, unknown>) => api.get<Page<TicketSummary>>('/tickets', { params: { ...p, size: 1 } }).then((r) => r.data.totalElements).catch(() => 0);
+    Promise.all([q({ status: OPEN.join(',') }), q({ status: OPEN.join(','), unassigned: true }), q({ overdue: true }), q({ breached: true, status: OPEN.join(',') })])
+      .then(([open, unassigned, overdue, breached]) => setC({ open, unassigned, overdue, breached }));
+  }, []);
+  return c;
+}
+
+function SlaBar({ t, compact }: { t: TicketSummary; compact?: boolean }) {
+  const due = t.sla.resolutionDueAt ? new Date(t.sla.resolutionDueAt).getTime() : null;
+  if (!due) return compact ? null : <p className="mt-3 text-xs text-muted-foreground">No SLA</p>;
+  const start = new Date(t.createdAt).getTime();
+  const end = t.sla.state === 'MET' || t.sla.state === 'BREACHED' ? Math.min(Date.now(), due + 1) : Date.now();
+  const pct = Math.max(2, Math.min(100, ((end - start) / Math.max(1, due - start)) * 100));
+  const color = t.sla.state === 'BREACHED' ? 'bg-breach' : t.sla.state === 'AT_RISK' ? 'bg-warn' : t.sla.state === 'MET' ? 'bg-ok' : t.sla.state === 'PAUSED' ? 'bg-muted-foreground/40' : 'bg-brand';
+  return (
+    <div className={compact ? 'mt-1.5' : 'mt-3'}>
+      {!compact && <div className="mb-1 flex justify-between text-[11px] text-muted-foreground"><span>Resolution SLA</span><SlaBadge sla={t.sla} /></div>}
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} /></div>
+    </div>
+  );
+}
 
 const STRIPE: Record<string, string> = { CRITICAL: 'bg-breach', HIGH: 'bg-[#F27A3D]', MEDIUM: 'bg-warn', LOW: 'bg-ok' };
 const OPEN = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'REOPENED'];
@@ -38,6 +64,9 @@ export default function TicketsPage() {
   const [projectId, setProjectId] = useState(sp.get('projectId') ?? '');
   const [sort, setSort] = useState('newest');
   const [creating, setCreating] = useState(false);
+  const [layout, setLayout] = useState<'list' | 'cards'>('list');
+  const navigate = useNavigate();
+  const counts = useTicketCounts();
   useEffect(() => { const h = setTimeout(() => setDebounced(q), 300); return () => clearTimeout(h); }, [q]);
   useEffect(() => setPage(0), [view, debounced, priority, projectId]);
 
@@ -56,56 +85,70 @@ export default function TicketsPage() {
     <>
       <PageHeader title="Tickets" description="Every ticket you can work on, with its SLA clock."
         actions={<Can permission="TICKET_CREATE"><Button onClick={() => setCreating(true)}><Plus /> New ticket</Button></Can>} />
-      <Card>
-        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Ticket views">
-            {VIEWS.map((v) => (
-              <button key={v.key} role="tab" aria-selected={view === v.key} onClick={() => setSp(v.key === 'open' ? {} : { view: v.key })}
-                className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${view === v.key ? 'bg-brand text-white shadow-glow' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>{v.label}</button>
-            ))}
-          </div>
-          <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Search number or title" aria-label="Search tickets" value={q} onChange={(e) => setQ(e.target.value)} />
-            </div>
-            {lk.projects.length > 0 && <NativeSelect aria-label="Project" className="w-44" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>}
-            <NativeSelect aria-label="Priority" className="w-36" value={priority} onChange={(e) => setPriority(e.target.value)}>
-              <option value="">Any priority</option>{['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>)}
-            </NativeSelect>
-            <NativeSelect aria-label="Sort" className="w-40" value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="due">Due soonest</option><option value="priority">Priority</option><option value="updated">Recently updated</option>
-            </NativeSelect>
-          </div>
-        </div>
-        {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
-        {loading && !data ? <TableSkeleton rows={8} cols={6} /> : data && (
-          data.content.length === 0 ? <EmptyState title="No tickets in this view" description="Try another view or clear the filters." /> : (
-            <>
-              <Table>
-                <THead><TR><TH>Ticket</TH><TH>Priority</TH><TH>Status</TH><TH>SLA</TH><TH>Assignee</TH><TH>Project</TH><TH>Age</TH></TR></THead>
-                <TBody>
-                  {data.content.map((t) => (
-                    <TR key={t.id}>
-                      <TD className="relative max-w-[28rem] pl-5">
-                        <span className={`absolute inset-y-2 left-1.5 w-1 rounded-full ${STRIPE[t.priority]}`} aria-hidden />
-                        <Link to={`/tickets/${t.id}`} className="font-medium hover:text-primary hover:underline">{t.title}</Link>
-                        <p className="num text-xs text-muted-foreground">{t.ticketNumber}{t.categoryName ? ` · ${t.categoryName}` : ''}{t.escalationLevel > 0 ? ` · escalated L${t.escalationLevel}` : ''}</p>
-                      </TD>
-                      <TD><PriorityTag priority={t.priority} /></TD>
-                      <TD><StatusBadge status={t.status} /></TD>
-                      <TD><SlaBadge sla={t.sla} /></TD>
-                      <TD className="text-sm">{t.assigneeName ?? <span className="text-muted-foreground">Unassigned</span>}</TD>
-                      <TD className="text-xs text-muted-foreground">{t.projectName}<br />{t.clientName}</TD>
-                      <TD className="num whitespace-nowrap text-xs text-muted-foreground" title={t.createdAt}>{relative(t.createdAt)}</TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-              <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
-            </>
-          ))}
-      </Card>
+      <HeroBanner icon={TicketIcon} title="Service queue" subtitle="Live counts across your projects"
+        metrics={[{ label: 'Open', value: counts.open }, { label: 'Unassigned', value: counts.unassigned }, { label: 'Overdue', value: counts.overdue }, { label: 'SLA breached', value: counts.breached }]} />
+      <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Ticket views">
+        {VIEWS.map((v) => (
+          <button key={v.key} role="tab" aria-selected={view === v.key} onClick={() => setSp(v.key === 'open' ? {} : { view: v.key })}
+            className={`rounded-full px-4 py-2 text-[13px] font-semibold transition ${view === v.key ? 'bg-brand text-white shadow-glow' : 'bg-card text-muted-foreground shadow-glass hover:text-foreground'}`}>{v.label}</button>
+        ))}
+      </div>
+      <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'list', label: 'List' }, { value: 'cards', label: 'Cards' }]} />}>
+        <SearchField label="Search tickets" placeholder="Search number or title" value={q} onChange={setQ} />
+        {lk.projects.length > 0 && <NativeSelect aria-label="Project" className="w-44 rounded-full" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{lk.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>}
+        <NativeSelect aria-label="Priority" className="w-36 rounded-full" value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <option value="">Any priority</option>{['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>)}
+        </NativeSelect>
+        <NativeSelect aria-label="Sort" className="w-40 rounded-full" value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="due">Due soonest</option><option value="priority">Priority</option><option value="updated">Recently updated</option>
+        </NativeSelect>
+      </FilterBar>
+      {error && <div className="mb-4"><ErrorState message={error} onRetry={reload} /></div>}
+      {loading && !data ? <Card><TableSkeleton rows={8} cols={6} /></Card> : data && (
+        data.content.length === 0 ? <Card><EmptyState title="No tickets in this view" description="Try another view or clear the filters." /></Card> : layout === 'cards' ? (
+          <>
+            <CardGrid>
+              {data.content.map((t) => (
+                <GridCard key={t.id} className="relative overflow-hidden" onClick={() => navigate(`/tickets/${t.id}`)}>
+                  <span className={`absolute inset-x-0 top-0 h-1 ${STRIPE[t.priority]}`} aria-hidden />
+                  <div className="flex items-center justify-between gap-2"><span className="num text-xs font-semibold text-muted-foreground">{t.ticketNumber}</span><StatusBadge status={t.status} /></div>
+                  <Link to={`/tickets/${t.id}`} onClick={(e) => e.stopPropagation()} className="mt-2 font-display text-[15px] font-semibold leading-snug hover:text-primary">{t.title}</Link>
+                  <p className="mt-1 text-xs text-muted-foreground">{t.projectName} · {t.clientName}</p>
+                  <SlaBar t={t} />
+                  <div className="mt-auto flex items-center justify-between pt-4">
+                    <span className="flex items-center gap-2 text-sm">{t.assigneeName ? <><Avatar name={t.assigneeName} className="h-7 w-7 text-[9px]" />{t.assigneeName}</> : <span className="text-muted-foreground">Unassigned</span>}</span>
+                    <PriorityTag priority={t.priority} />
+                  </div>
+                </GridCard>
+              ))}
+            </CardGrid>
+            <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+          </>
+        ) : (
+          <Card className="pt-2">
+            <Table>
+              <THead><TR><TH>Ticket</TH><TH>Priority</TH><TH>Status</TH><TH className="min-w-[180px]">SLA</TH><TH>Assignee</TH><TH>Project</TH><TH>Age</TH></TR></THead>
+              <TBody>
+                {data.content.map((t) => (
+                  <TR key={t.id}>
+                    <TD className="relative max-w-[28rem] pl-5">
+                      <span className={`absolute inset-y-2 left-1.5 w-1 rounded-full ${STRIPE[t.priority]}`} aria-hidden />
+                      <Link to={`/tickets/${t.id}`} className="font-semibold hover:text-primary">{t.title}</Link>
+                      <p className="num text-xs text-muted-foreground">{t.ticketNumber}{t.categoryName ? ` · ${t.categoryName}` : ''}{t.escalationLevel > 0 ? ` · escalated L${t.escalationLevel}` : ''}</p>
+                    </TD>
+                    <TD><PriorityTag priority={t.priority} /></TD>
+                    <TD><StatusBadge status={t.status} /></TD>
+                    <TD><SlaBadge sla={t.sla} /><SlaBar t={t} compact /></TD>
+                    <TD className="text-sm">{t.assigneeName ? <span className="flex items-center gap-2"><Avatar name={t.assigneeName} className="h-7 w-7 text-[9px]" />{t.assigneeName}</span> : <span className="text-muted-foreground">Unassigned</span>}</TD>
+                    <TD className="text-xs text-muted-foreground">{t.projectName}<br />{t.clientName}</TD>
+                    <TD className="num whitespace-nowrap text-xs text-muted-foreground" title={t.createdAt}>{relative(t.createdAt)}</TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+            <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+          </Card>
+        ))}
       <CreateTicketDialog open={creating} onOpenChange={setCreating} />
     </>
   );

@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import { CardGrid, FilterBar, GridCard, SearchField, SegmentedControl } from '@/components/layout';
 import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
@@ -13,11 +14,13 @@ import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import { Can, EmptyState, ErrorState, PageHeader, Pagination } from '@/components/common';
+import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination } from '@/components/common';
 import { useApi } from '@/hooks/useApi';
 import { invalidateLookups, useLookups } from '@/hooks/useLookups';
 import { api, errorMessage } from '@/services/api';
 import type { Client, Page } from '@/types/api';
+
+const MONO = ['bg-gradient-to-br from-[#5B4CF0] to-[#8B5CF6]', 'bg-gradient-to-br from-[#12B886] to-[#2E9BF0]', 'bg-gradient-to-br from-[#F5A524] to-[#F0506E]', 'bg-gradient-to-br from-[#2E9BF0] to-[#5B4CF0]'];
 
 export default function ClientsPage() {
   const [q, setQ] = useState('');
@@ -25,42 +28,64 @@ export default function ClientsPage() {
   const [status, setStatus] = useState('');
   const { data, error, loading, reload } = useApi<Page<Client>>('/clients', { q: q || undefined, status: status || undefined, page, size: 20 });
   const [editing, setEditing] = useState<Client | null | undefined>(undefined);
+  const [layout, setLayout] = useState<'cards' | 'table'>('cards');
   return (
     <>
       <PageHeader title="Clients" description="Organisations you support, their contacts, account managers and projects."
         actions={<Can permission="CLIENT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add client</Button></Can>} />
-      <Card>
-        <div className="flex flex-wrap gap-2 p-4">
-          <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Search name or code" aria-label="Search clients" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
-          <NativeSelect aria-label="Status" className="w-36" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></NativeSelect>
-        </div>
-        {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
-        {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No clients found" /> : (
-          <>
-            <Table>
-              <THead><TR><TH>Client</TH><TH>Industry</TH><TH>Account manager</TH><TH>Primary contact</TH><TH className="text-right">Projects</TH><TH className="text-right">Open / total tickets</TH><TH>Status</TH><TH /></TR></THead>
-              <TBody>
-                {data.content.map((c) => {
-                  const primary = c.contacts.find((x) => x.primary) ?? c.contacts[0];
-                  return (
-                    <TR key={c.id}>
-                      <TD><p className="font-medium">{c.name}</p><p className="text-xs text-muted-foreground">{c.code}</p></TD>
-                      <TD>{c.industry ?? '—'}</TD><TD>{c.accountManagerName ?? '—'}</TD>
-                      <TD className="text-sm">{primary ? <>{primary.name}<span className="block text-xs text-muted-foreground">{primary.email}</span></> : '—'}</TD>
-                      <TD className="num text-right"><Link className="text-primary hover:underline" to={`/projects?clientId=${c.id}`}>{c.projectCount}</Link></TD>
-                      <TD className="num text-right">{c.openTickets} / {c.totalTickets}</TD>
-                      <TD><Badge tone={c.status === 'ACTIVE' ? 'green' : 'neutral'}>{c.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge></TD>
-                      <TD className="text-right"><Can permission="CLIENT_WRITE"><Button variant="ghost" size="sm" onClick={() => setEditing(c)}>Edit</Button></Can></TD>
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
-            <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
-          </>
-        ))}
-      </Card>
+      <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />}>
+        <SearchField label="Search clients" placeholder="Search name or code" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        <NativeSelect aria-label="Status" className="w-36 rounded-full" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></NativeSelect>
+      </FilterBar>
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.content.length === 0 ? <Card><EmptyState title="No clients found" /></Card> : layout === 'cards' ? (
+        <>
+          <CardGrid>
+            {data.content.map((c) => {
+              const primary = c.contacts.find((x) => x.primary) ?? c.contacts[0];
+              return (
+                <GridCard key={c.id}>
+                  <div className="flex items-start gap-3">
+                    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl font-display text-sm font-bold text-white ${MONO[c.code.charCodeAt(0) % MONO.length]}`}>{c.code.slice(0, 2)}</span>
+                    <div className="min-w-0 flex-1"><p className="truncate font-display text-[16px] font-semibold">{c.name}</p><p className="text-xs text-muted-foreground">{c.code} · {c.industry ?? 'No industry'}</p></div>
+                    <Badge tone={c.status === 'ACTIVE' ? 'green' : 'neutral'}>{c.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <Link to={`/projects?clientId=${c.id}`} className="rounded-xl bg-muted/70 py-2 hover:bg-accent"><p className="display-num text-lg">{c.projectCount}</p><p className="text-[11px] text-muted-foreground">projects</p></Link>
+                    <div className="rounded-xl bg-muted/70 py-2"><p className={`display-num text-lg ${c.openTickets ? 'text-warn' : ''}`}>{c.openTickets}</p><p className="text-[11px] text-muted-foreground">open</p></div>
+                    <div className="rounded-xl bg-muted/70 py-2"><p className="display-num text-lg">{c.totalTickets}</p><p className="text-[11px] text-muted-foreground">tickets</p></div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">{c.accountManagerName ? <><Avatar name={c.accountManagerName} className="h-7 w-7 text-[9px]" /><span className="truncate">{c.accountManagerName}</span></> : <span className="text-muted-foreground">No account manager</span>}</span>
+                    <Can permission="CLIENT_WRITE"><Button variant="ghost" size="sm" onClick={() => setEditing(c)}>Edit</Button></Can>
+                  </div>
+                  {primary && <p className="mt-2 truncate text-xs text-muted-foreground">Contact: {primary.name}{primary.email ? ` · ${primary.email}` : ''}</p>}
+                </GridCard>
+              );
+            })}
+          </CardGrid>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      ) : (
+        <Card className="pt-2">
+          <Table>
+            <THead><TR><TH>Client</TH><TH>Industry</TH><TH>Account manager</TH><TH className="text-right">Projects</TH><TH className="text-right">Open / total tickets</TH><TH>Status</TH><TH /></TR></THead>
+            <TBody>
+              {data.content.map((c) => (
+                <TR key={c.id}>
+                  <TD><p className="font-semibold">{c.name}</p><p className="text-xs text-muted-foreground">{c.code}</p></TD>
+                  <TD>{c.industry ?? '—'}</TD><TD>{c.accountManagerName ?? '—'}</TD>
+                  <TD className="num text-right"><Link className="text-primary hover:underline" to={`/projects?clientId=${c.id}`}>{c.projectCount}</Link></TD>
+                  <TD className="num text-right">{c.openTickets} / {c.totalTickets}</TD>
+                  <TD><Badge tone={c.status === 'ACTIVE' ? 'green' : 'neutral'}>{c.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge></TD>
+                  <TD className="text-right"><Can permission="CLIENT_WRITE"><Button variant="ghost" size="sm" onClick={() => setEditing(c)}>Edit</Button></Can></TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </Card>
+      ))}
       {editing !== undefined && <ClientDialog client={editing} onClose={(changed) => { setEditing(undefined); if (changed) { invalidateLookups(); reload(); } }} />}
     </>
   );

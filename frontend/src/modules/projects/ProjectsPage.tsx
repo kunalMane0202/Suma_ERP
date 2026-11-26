@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, CircleAlert, Plus, Search } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Plus } from 'lucide-react';
+import { CardGrid, FilterBar, GridCard, SearchField, SegmentedControl } from '@/components/layout';
+import { AvatarStack } from '@/components/viz';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
@@ -28,46 +30,68 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(0);
   const { data, error, loading, reload } = useApi<Page<Project>>('/projects', { q: q || undefined, clientId: clientId || undefined, page, size: 20 });
   const [editing, setEditing] = useState<Project | null | undefined>(undefined);
+  const [layout, setLayout] = useState<'cards' | 'table'>('cards');
+  const navigate = useNavigate();
   return (
     <>
       <PageHeader title="Projects" description="Support engagements per client: leadership, Project Lead report recipient, support hours and staffing."
         actions={<Can permission="PROJECT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> New project</Button></Can>} />
-      <Card>
-        <div className="flex flex-wrap gap-2 p-4">
-          <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Search name or code" aria-label="Search projects" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
-          {lk.clients.length > 0 && <NativeSelect aria-label="Client" className="w-52" value={clientId} onChange={(e) => setClientId(e.target.value)}><option value="">All clients</option>{lk.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>}
-        </div>
-        {error && <div className="p-4"><ErrorState message={error} onRetry={reload} /></div>}
-        {loading && !data ? <TableSkeleton /> : data && (data.content.length === 0 ? <EmptyState title="No projects found" /> : (
-          <>
-            <Table>
-              <THead><TR><TH>Project</TH><TH>Client</TH><TH>Manager</TH><TH>Team leader</TH><TH>Project Lead</TH><TH className="text-right">People</TH><TH className="text-right">Open tickets</TH><TH>Status</TH></TR></THead>
-              <TBody>
-                {data.content.map((p) => (
-                  <TR key={p.id}>
-                    <TD><Link to={`/projects/${p.id}`} className="font-medium hover:text-primary hover:underline">{p.name}</Link><p className="text-xs text-muted-foreground">{p.code}{p.supportHours ? ` · ${p.supportHours}` : ''}</p></TD>
-                    <TD>{p.clientName}</TD><TD>{p.managerName ?? '—'}</TD><TD>{p.teamLeaderName ?? '—'}</TD>
-                    <TD>
-                      {p.projectLeadName ?? '—'}
-                      {p.projectLeadEmail && (
-                        <Tooltip content={p.projectLeadEmailVerified ? 'Verified: monthly reports are delivered' : 'Not verified: monthly reports will not be sent'}>
-                          <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                            {p.projectLeadEmailVerified ? <CheckCircle2 className="h-3 w-3 text-ok" /> : <CircleAlert className="h-3 w-3 text-warn" />}{p.projectLeadEmail}
-                          </span>
-                        </Tooltip>
-                      )}
-                    </TD>
-                    <TD className="num text-right">{p.memberCount}</TD><TD className="num text-right">{p.openTickets}</TD>
-                    <TD><Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{p.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge></TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-            <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
-          </>
-        ))}
-      </Card>
+      <FilterBar right={<SegmentedControl label="Layout" value={layout} onChange={setLayout} options={[{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }]} />}>
+        <SearchField label="Search projects" placeholder="Search name or code" value={q} onChange={(v) => { setPage(0); setQ(v); }} />
+        {lk.clients.length > 0 && <NativeSelect aria-label="Client" className="w-52 rounded-full" value={clientId} onChange={(e) => setClientId(e.target.value)}><option value="">All clients</option>{lk.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>}
+      </FilterBar>
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.content.length === 0 ? <Card><EmptyState title="No projects found" /></Card> : layout === 'cards' ? (
+        <>
+          <CardGrid>
+            {data.content.map((p) => (
+              <GridCard key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="relative overflow-hidden">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet/10 blur-xl" />
+                <div className="relative flex items-start justify-between gap-2">
+                  <div className="min-w-0"><p className="text-xs font-semibold text-primary">{p.code}</p><Link to={`/projects/${p.id}`} onClick={(e) => e.stopPropagation()} className="mt-0.5 block font-display text-[16px] font-semibold leading-snug hover:text-primary">{p.name}</Link>
+                    <p className="text-xs text-muted-foreground">{p.clientName}</p></div>
+                  <Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{p.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
+                </div>
+                <div className="relative mt-4 flex items-center justify-between">
+                  <AvatarStack names={[p.managerName, p.teamLeaderName, p.projectLeadName].filter((x): x is string => !!x)} />
+                  <div className="text-right"><p className="display-num text-xl">{p.memberCount}</p><p className="text-[11px] text-muted-foreground">people</p></div>
+                </div>
+                <div className="relative mt-4">
+                  <div className="mb-1 flex justify-between text-xs"><span className="text-muted-foreground">Open tickets</span><span className="display-num">{p.openTickets} / {p.totalTickets}</span></div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-brand" style={{ width: `${p.totalTickets ? Math.max(4, (p.openTickets / p.totalTickets) * 100) : 0}%` }} /></div>
+                </div>
+                <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs">
+                  {p.projectLeadEmail ? (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${p.projectLeadEmailVerified ? 'bg-ok/10 text-ok' : 'bg-warn/15 text-warn'}`}>
+                      {p.projectLeadEmailVerified ? <CheckCircle2 className="h-3 w-3" /> : <CircleAlert className="h-3 w-3" />}{p.projectLeadEmailVerified ? 'Report recipient verified' : 'Recipient not verified'}</span>
+                  ) : <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">No report recipient</span>}
+                  {p.supportHours && <span className="truncate text-muted-foreground">{p.supportHours}</span>}
+                </div>
+              </GridCard>
+            ))}
+          </CardGrid>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </>
+      ) : (
+        <Card className="pt-2">
+          <Table>
+            <THead><TR><TH>Project</TH><TH>Client</TH><TH>Manager</TH><TH>Team leader</TH><TH>Project Lead</TH><TH className="text-right">People</TH><TH className="text-right">Open tickets</TH><TH>Status</TH></TR></THead>
+            <TBody>
+              {data.content.map((p) => (
+                <TR key={p.id}>
+                  <TD><Link to={`/projects/${p.id}`} className="font-semibold hover:text-primary">{p.name}</Link><p className="text-xs text-muted-foreground">{p.code}</p></TD>
+                  <TD>{p.clientName}</TD><TD>{p.managerName ?? '—'}</TD><TD>{p.teamLeaderName ?? '—'}</TD>
+                  <TD>{p.projectLeadName ?? '—'}{p.projectLeadEmail && <Tooltip content={p.projectLeadEmailVerified ? 'Verified: monthly reports are delivered' : 'Not verified: monthly reports will not be sent'}>
+                    <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">{p.projectLeadEmailVerified ? <CheckCircle2 className="h-3 w-3 text-ok" /> : <CircleAlert className="h-3 w-3 text-warn" />}{p.projectLeadEmail}</span></Tooltip>}</TD>
+                  <TD className="num text-right">{p.memberCount}</TD><TD className="num text-right">{p.openTickets}</TD>
+                  <TD><Badge tone={p.status === 'ACTIVE' ? 'green' : 'neutral'}>{p.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge></TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+          <Pagination page={data.page} totalPages={data.totalPages} total={data.totalElements} onPage={setPage} />
+        </Card>
+      ))}
       {editing !== undefined && <ProjectDialog project={editing} onClose={(c) => { setEditing(undefined); if (c) { invalidateLookups(); reload(); } }} />}
     </>
   );
