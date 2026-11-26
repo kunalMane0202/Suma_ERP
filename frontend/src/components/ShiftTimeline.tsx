@@ -52,14 +52,14 @@ export function ShiftTimeline({ data, compact = false, className }: { data: Time
 
   return (
     <div className={cn('w-full', className)}>
-      <div className={cn('relative w-full overflow-hidden rounded-md bg-muted/80', compact ? 'h-3' : 'h-7')} role="img"
+      <div className={cn('relative w-full overflow-hidden rounded-full bg-muted', compact ? 'h-3' : 'h-9 dot-grid')} role="img"
         aria-label={`Timeline for ${data.date}: ${data.sessions.length} session(s), ${data.breaks.length} break(s), ${data.idles.length} inactivity event(s)`}>
         {work.map(({ r, s }, i) => (
           <Tooltip key={'w' + i} content={`Signed in ${time(s.loginAt, tz)} – ${s.logoutAt ? time(s.logoutAt, tz) : 'now'}${s.status === 'MISSING_LOGOUT' ? ' (missing logout)' : ''}`}>
             <motion.div
               initial={reduce ? false : { scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 }}
               style={{ left: `${pct(r[0])}%`, width: `${pct(r[1]) - pct(r[0])}%`, transformOrigin: 'left' }}
-              className={cn('absolute inset-y-0 bg-primary/80', s.status === 'MISSING_LOGOUT' && 'bg-[repeating-linear-gradient(45deg,hsl(var(--primary)/.75)_0_6px,hsl(var(--primary)/.45)_6px_12px)]')} />
+              className={cn('absolute inset-y-0 rounded-full bg-brand', s.status === 'MISSING_LOGOUT' && 'bg-[repeating-linear-gradient(45deg,hsl(var(--primary)/.75)_0_6px,hsl(var(--primary)/.45)_6px_12px)]')} />
           </Tooltip>
         ))}
         {idl.map(({ r, i }, k) => (
@@ -71,7 +71,7 @@ export function ShiftTimeline({ data, compact = false, className }: { data: Time
         {brk.map(({ r, b }, k) => (
           <Tooltip key={'b' + k} content={`${b.category ? b.category.charAt(0) + b.category.slice(1).toLowerCase() + ' break' : 'Break'} ${time(b.startedAt, tz)} – ${b.endedAt ? time(b.endedAt, tz) : 'now'} · ${duration(b.durationSeconds)}${b.exceeded ? ' · over limit' : ''}`}>
             <div style={{ left: `${pct(r[0])}%`, width: `${pct(r[1]) - pct(r[0])}%` }}
-              className={cn('absolute inset-y-0 border-x border-card', b.exceeded ? 'bg-breach' : 'bg-warn')} />
+              className={cn('absolute inset-y-[3px] rounded-full ring-2 ring-card', b.exceeded ? 'bg-breach' : 'bg-warn')} />
           </Tooltip>
         ))}
       </div>
@@ -89,10 +89,10 @@ export function ShiftTimeline({ data, compact = false, className }: { data: Time
 export function TimelineLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-primary/80" />Signed in</span>
-      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-warn" />Break</span>
-      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-breach" />Break over limit</span>
-      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-[repeating-linear-gradient(90deg,hsl(var(--idle))_0_2px,transparent_2px_5px)]" />No app activity</span>
+      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-full bg-brand" />Signed in</span>
+      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-full bg-warn" />Break</span>
+      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-full bg-breach" />Break over limit</span>
+      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-full bg-[repeating-linear-gradient(90deg,hsl(var(--idle))_0_2px,transparent_2px_5px)]" />No app activity</span>
     </div>
   );
 }

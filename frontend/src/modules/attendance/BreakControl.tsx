@@ -16,7 +16,7 @@ export function BreakPill() {
   const secs = (now - new Date(b.startedAt).getTime()) / 1000;
   const over = b.limitMinutes != null && secs > b.limitMinutes * 60;
   return (
-    <div className={cn('hidden items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-xs sm:flex', over ? 'border-breach/40 bg-breach/10 text-breach' : 'border-warn/40 bg-warn/10 text-warn')}>
+    <div className={cn('hidden items-center gap-2 rounded-full py-1 pl-3 pr-1 text-xs font-semibold sm:flex', over ? 'bg-breach/15 text-breach' : 'bg-warn/15 text-warn')}>
       <Coffee className="h-3.5 w-3.5" />
       <span className="num font-medium">On break {clock(secs)}</span>
       <Button size="sm" variant="outline" className="h-6 rounded-full px-2 text-xs" loading={busy} onClick={() => void endBreak()}>End</Button>
@@ -41,13 +41,13 @@ export function BreakControl() {
         <div className="flex items-baseline justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Current break · {today.breakCategories.find((c) => c.code === b.category)?.label ?? b.category}</p>
-            <p className={cn('num text-4xl font-semibold tracking-tight', over ? 'text-breach' : 'text-foreground')} aria-live="polite">{clock(secs)}</p>
+            <p className={cn('display-num text-4xl', over ? 'text-breach' : 'text-foreground')} aria-live="polite">{clock(secs)}</p>
           </div>
           <Button size="lg" variant={over ? 'destructive' : 'default'} loading={busy} onClick={() => void endBreak()}><Square /> End break</Button>
         </div>
         {pct != null && (
           <div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className={cn('h-full transition-[width]', over ? 'bg-breach' : 'bg-warn')} style={{ width: `${pct}%` }} /></div>
+            <div className="h-2 overflow-hidden rounded-full bg-card"><div className={cn('h-full rounded-full transition-[width]', over ? 'bg-breach' : 'bg-gradient-to-r from-warn to-[#F27A3D]')} style={{ width: `${pct}%` }} /></div>
             <p className="mt-1 text-xs text-muted-foreground">{over ? `Over the ${limit}-minute limit` : `Limit ${limit} minutes`}</p>
           </div>
         )}

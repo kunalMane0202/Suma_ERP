@@ -30,7 +30,7 @@ export default function ClientsPage() {
       <PageHeader title="Clients" description="Organisations you support, their contacts, account managers and projects."
         actions={<Can permission="CLIENT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> Add client</Button></Can>} />
       <Card>
-        <div className="flex flex-wrap gap-2 border-b p-3">
+        <div className="flex flex-wrap gap-2 p-4">
           <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Search name or code" aria-label="Search clients" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
           <NativeSelect aria-label="Status" className="w-36" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Any status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></NativeSelect>

@@ -20,6 +20,7 @@ import { api, errorMessage } from '@/services/api';
 import { relative } from '@/utils/format';
 import type { Category, Page, TicketDetail, TicketSummary } from '@/types/api';
 
+const STRIPE: Record<string, string> = { CRITICAL: 'bg-breach', HIGH: 'bg-[#F27A3D]', MEDIUM: 'bg-warn', LOW: 'bg-ok' };
 const OPEN = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'REOPENED'];
 const VIEWS = [
   { key: 'open', label: 'Open' }, { key: 'mine', label: 'Assigned to me' }, { key: 'unassigned', label: 'Unassigned' },
@@ -56,11 +57,11 @@ export default function TicketsPage() {
       <PageHeader title="Tickets" description="Every ticket you can work on, with its SLA clock."
         actions={<Can permission="TICKET_CREATE"><Button onClick={() => setCreating(true)}><Plus /> New ticket</Button></Can>} />
       <Card>
-        <div className="flex flex-col gap-3 border-b p-3 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
           <div className="flex flex-wrap gap-1" role="tablist" aria-label="Ticket views">
             {VIEWS.map((v) => (
               <button key={v.key} role="tab" aria-selected={view === v.key} onClick={() => setSp(v.key === 'open' ? {} : { view: v.key })}
-                className={`rounded-md px-2.5 py-1.5 text-sm ${view === v.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>{v.label}</button>
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${view === v.key ? 'bg-brand text-white shadow-glow' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>{v.label}</button>
             ))}
           </div>
           <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
@@ -86,7 +87,8 @@ export default function TicketsPage() {
                 <TBody>
                   {data.content.map((t) => (
                     <TR key={t.id}>
-                      <TD className="max-w-[28rem]">
+                      <TD className="relative max-w-[28rem] pl-5">
+                        <span className={`absolute inset-y-2 left-1.5 w-1 rounded-full ${STRIPE[t.priority]}`} aria-hidden />
                         <Link to={`/tickets/${t.id}`} className="font-medium hover:text-primary hover:underline">{t.title}</Link>
                         <p className="num text-xs text-muted-foreground">{t.ticketNumber}{t.categoryName ? ` · ${t.categoryName}` : ''}{t.escalationLevel > 0 ? ` · escalated L${t.escalationLevel}` : ''}</p>
                       </TD>

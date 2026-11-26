@@ -13,6 +13,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
+import { RadialGauge } from '@/components/viz';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, download, errorMessage } from '@/services/api';
@@ -65,17 +66,37 @@ function Overview() {
       <NativeSelect aria-label="Period" className="w-40" value={hours} onChange={(e) => setHours(Number(e.target.value))}>
         <option value={24}>Last 24 hours</option><option value={168}>Last 7 days</option><option value={720}>Last 30 days</option>
       </NativeSelect>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-        <Stat index={0} label="Successful sign-ins" value={d.successfulLogins} tone="ok" />
-        <Stat index={1} label="Failed sign-ins" value={d.failedLogins} tone={d.failedLogins ? 'warn' : 'default'} />
-        <Stat index={2} label="Unknown usernames" value={d.unknownUserAttempts} tone={d.unknownUserAttempts ? 'idle' : 'default'} />
-        <Stat index={3} label="Unauthenticated requests" value={d.unauthenticatedRequests} />
-        <Stat index={4} label="Access denied" value={d.accessDenied} tone={d.accessDenied ? 'breach' : 'default'} />
-        <Stat index={5} label="Blocked by IP rule" value={d.blockedRequests} />
-        <Stat index={6} label="Unique IP addresses" value={d.uniqueIps} />
-        <Stat index={7} label="Suspicious events" value={d.suspiciousEvents} tone={d.suspiciousEvents ? 'breach' : 'default'} />
-        <Stat index={8} label="Active sessions" value={d.activeSessions} hint={`${d.activeUsers} users`} tone="primary" />
-        <Stat index={9} label="IP changes" value={d.ipChanges} hint="Informational, never blocks" />
+      <div className="grid gap-4 lg:grid-cols-12">
+        <Card tone="ink" className="relative overflow-hidden lg:col-span-5">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#8B5CF6]/40 blur-3xl" />
+          <CardContent className="relative flex items-center gap-6 pt-6">
+            <RadialGauge value={d.successfulLogins + d.failedLogins === 0 ? 100 : (d.successfulLogins * 100) / (d.successfulLogins + d.failedLogins)} size={150} stroke={14} tone="light"
+              label={<span className="display-num text-3xl text-white">{d.successfulLogins + d.failedLogins === 0 ? '—' : `${Math.round((d.successfulLogins * 100) / (d.successfulLogins + d.failedLogins))}%`}</span>} sublabel={<span className="text-white/70">success</span>} />
+            <div className="space-y-3">
+              <p className="font-display text-lg font-semibold">Sign-in health</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div><p className="text-xs text-white/60">Successful</p><p className="display-num text-2xl text-[#5EEAD4]">{d.successfulLogins}</p></div>
+                <div><p className="text-xs text-white/60">Failed</p><p className="display-num text-2xl text-[#FDA4AF]">{d.failedLogins}</p></div>
+                <div><p className="text-xs text-white/60">Unknown users</p><p className="display-num text-2xl">{d.unknownUserAttempts}</p></div>
+                <div><p className="text-xs text-white/60">Suspicious</p><p className="display-num text-2xl text-[#FCD34D]">{d.suspiciousEvents}</p></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:col-span-7">
+          <Stat index={0} label="Successful sign-ins" value={d.successfulLogins} tone="ok" />
+          <Stat index={1} label="Failed sign-ins" value={d.failedLogins} tone={d.failedLogins ? 'warn' : 'default'} />
+          <Stat index={2} label="Unknown usernames" value={d.unknownUserAttempts} tone={d.unknownUserAttempts ? 'idle' : 'default'} />
+          <Stat index={3} label="Unauthenticated requests" value={d.unauthenticatedRequests} />
+          <Stat index={4} label="Access denied" value={d.accessDenied} tone={d.accessDenied ? 'breach' : 'default'} />
+          <Stat index={5} label="Blocked by IP rule" value={d.blockedRequests} />
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:col-span-12">
+          <Stat index={6} label="Unique IP addresses" value={d.uniqueIps} tone="primary" />
+          <Stat index={7} label="Suspicious events" value={d.suspiciousEvents} tone={d.suspiciousEvents ? 'breach' : 'default'} />
+          <Stat index={8} label="Active sessions" value={d.activeSessions} hint={`${d.activeUsers} users`} tone="primary" />
+          <Stat index={9} label="IP changes" value={d.ipChanges} hint="Informational, never blocks" />
+        </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -98,7 +119,7 @@ function Overview() {
           <CardContent>
             {d.repeatedFailures.length === 0 ? <p className="text-sm text-muted-foreground">No repeated failures.</p> : (
               <ul className="space-y-2">{d.repeatedFailures.map((r) => (
-                <li key={r.ip} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"><span className="font-mono text-xs">{r.ip}</span><span className="text-right"><b className="num text-breach">{r.attempts}</b> <span className="text-xs text-muted-foreground">· {relative(r.lastAttempt)}</span></span></li>
+                <li key={r.ip} className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2.5 text-sm"><span className="font-mono text-xs">{r.ip}</span><span className="text-right"><b className="num text-breach">{r.attempts}</b> <span className="text-xs text-muted-foreground">· {relative(r.lastAttempt)}</span></span></li>
               ))}</ul>
             )}
             <p className="mt-4 text-sm font-medium">Failure reasons</p>
@@ -122,7 +143,7 @@ function Overview() {
 function FilterBar({ f, setF, extra, exportType }: { f: Record<string, string>; setF: (f: Record<string, string>) => void; extra?: React.ReactNode; exportType?: string }) {
   const { can } = useAuth();
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b p-3">
+    <div className="flex flex-wrap items-center gap-2 p-4">
       <div className="relative w-full sm:w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input className="pl-8" placeholder="IP address starts with" aria-label="Filter by IP" value={f.ip ?? ''} onChange={(e) => setF({ ...f, ip: e.target.value })} /></div>
       {extra}
@@ -257,7 +278,7 @@ function Sessions() {
   };
   return (
     <Card>
-      <div className="flex items-center gap-2 border-b p-3">
+      <div className="flex items-center gap-2 p-4">
         <NativeSelect aria-label="Session status" className="w-44" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="ACTIVE">Active</option><option value="TERMINATED">Terminated</option><option value="EXPIRED">Expired</option><option value="LOGGED_OUT">Signed out</option>
         </NativeSelect>

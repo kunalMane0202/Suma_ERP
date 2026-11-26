@@ -1,4 +1,5 @@
-import { ArrowLeft, Pencil, Plus, Search, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, BookMarked, CircleHelp, Eye, Pencil, Plus, Search, ThumbsUp, Wrench, CheckCheck } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +18,13 @@ import { relative, titleCase } from '@/utils/format';
 interface Row { id: string; title: string; summary?: string; articleType: string; categoryId?: string; categoryName?: string; projectId?: string; projectName?: string; tags?: string; status: string; authorName?: string; viewCount: number; helpfulCount: number; updatedAt: string; snippet?: string }
 interface Detail { article: Row; content: string }
 interface Cat { id: string; name: string }
+
+const TYPE_STYLE: Record<string, { label: string; band: string; icon: typeof BookMarked }> = {
+  SOP: { label: 'SOP', band: 'bg-gradient-to-br from-[#5B4CF0] to-[#8B5CF6]', icon: BookMarked },
+  TROUBLESHOOTING: { label: 'Troubleshooting', band: 'bg-gradient-to-br from-[#F5A524] to-[#F0506E]', icon: Wrench },
+  FAQ: { label: 'FAQ', band: 'bg-gradient-to-br from-[#2E9BF0] to-[#5B4CF0]', icon: CircleHelp },
+  RESOLUTION: { label: 'Resolution', band: 'bg-gradient-to-br from-[#12B886] to-[#2E9BF0]', icon: CheckCheck },
+};
 
 export default function KnowledgePage() {
   const [q, setQ] = useState('');
@@ -44,16 +52,33 @@ export default function KnowledgePage() {
       {loading && !data ? <div className="grid gap-3 md:grid-cols-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}</div> : (data ?? []).length === 0 ? (
         <Card><EmptyState title={deb ? `No articles match “${deb}”` : 'No articles yet'} description="Try different words, or write the article your team is missing." /></Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {data!.map((a) => (
-            <button key={a.id} onClick={() => setOpen(a.id)} className="glass rounded-lg p-4 text-left transition-shadow hover:shadow-lift">
-              <div className="mb-1.5 flex flex-wrap items-center gap-1.5"><Badge tone={a.articleType === 'SOP' ? 'navy' : a.articleType === 'TROUBLESHOOTING' ? 'amber' : a.articleType === 'FAQ' ? 'blue' : 'green'}>{a.articleType === 'SOP' ? 'SOP' : titleCase(a.articleType)}</Badge>
-                {a.status !== 'PUBLISHED' && <Badge>{titleCase(a.status)}</Badge>}{a.projectName && <span className="text-xs text-muted-foreground">{a.projectName}</span>}</div>
-              <p className="font-semibold">{a.title}</p>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.snippet ? <Highlight text={a.snippet} /> : a.summary}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{a.categoryName ?? 'Uncategorised'} · {a.viewCount} views · {a.helpfulCount} found helpful · updated {relative(a.updatedAt)}</p>
-            </button>
-          ))}
+        <div className="columns-1 gap-4 md:columns-2 2xl:columns-3 [column-fill:_balance]">
+          {data!.map((a, i) => {
+            const t = TYPE_STYLE[a.articleType] ?? TYPE_STYLE.FAQ;
+            return (
+              <motion.button key={a.id} onClick={() => setOpen(a.id)} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i, 10) * 0.04, type: 'spring', stiffness: 240, damping: 24 }} whileHover={{ y: -4 }}
+                className="glass mb-4 block w-full break-inside-avoid overflow-hidden text-left transition-shadow hover:shadow-lift">
+                <div className={`relative h-20 ${t.band} p-4`}>
+                  <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-xl bg-white/25 text-white backdrop-blur"><t.icon className="h-4 w-4" /></span>
+                  <span className="inline-flex rounded-full bg-white/25 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur">{t.label}</span>
+                </div>
+                <div className="p-5">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                    {a.status !== 'PUBLISHED' && <Badge>{titleCase(a.status)}</Badge>}
+                    {a.projectName && <span className="text-xs text-muted-foreground">{a.projectName}</span>}
+                  </div>
+                  <p className="font-display text-[16px] font-semibold leading-snug">{a.title}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{a.snippet ? <Highlight text={a.snippet} /> : a.summary}</p>
+                  {a.tags && <div className="mt-3 flex flex-wrap gap-1">{a.tags.split(',').slice(0, 4).map((tg) => <span key={tg} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">#{tg.trim()}</span>)}</div>}
+                  <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{a.categoryName ?? 'Uncategorised'}</span>
+                    <span className="flex items-center gap-3"><span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{a.viewCount}</span><span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5" />{a.helpfulCount}</span></span>
+                  </div>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
       )}
       {edit && <Editor value={edit} cats={cats.data ?? []} onClose={(saved) => { setEdit(null); if (saved) { reload(); if (open) setOpen(null); } }} />}

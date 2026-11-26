@@ -33,7 +33,7 @@ export default function ProjectsPage() {
       <PageHeader title="Projects" description="Support engagements per client: leadership, Project Lead report recipient, support hours and staffing."
         actions={<Can permission="PROJECT_WRITE"><Button onClick={() => setEditing(null)}><Plus /> New project</Button></Can>} />
       <Card>
-        <div className="flex flex-wrap gap-2 border-b p-3">
+        <div className="flex flex-wrap gap-2 p-4">
           <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Search name or code" aria-label="Search projects" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
           {lk.clients.length > 0 && <NativeSelect aria-label="Client" className="w-52" value={clientId} onChange={(e) => setClientId(e.target.value)}><option value="">All clients</option>{lk.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>}

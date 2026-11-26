@@ -61,7 +61,7 @@ export default function ReportsPage() {
           <Card className="h-fit p-2">
             <nav aria-label="Report types"><ul className="space-y-0.5">
               {TYPES.map((t) => (
-                <li key={t.key}><button onClick={() => setType(t.key)} className={`w-full rounded-md px-3 py-2 text-left text-sm ${type === t.key ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>{t.label}</button></li>
+                <li key={t.key}><button onClick={() => setType(t.key)} className={`w-full rounded-md px-3 py-2 text-left text-sm ${type === t.key ? 'bg-brand text-white shadow-glow' : 'hover:bg-accent'}`}>{t.label}</button></li>
               ))}
             </ul></nav>
           </Card>

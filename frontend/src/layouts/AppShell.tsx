@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, LogOut, Menu, Moon, Sun, UserRound, X } from 'lucide-react';
+import { Bell, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, UserRound, X } from 'lucide-react';
+import { CommandPalette } from './CommandPalette';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -18,33 +19,37 @@ import { relative, titleCase } from '@/utils/format';
 
 interface NotificationItem { id: string; title: string; message?: string; severity: string; readAt?: string; createdAt: string; entityType?: string; entityId?: string }
 
-function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+function Sidebar({ onNavigate, collapsed = false, onToggle }: { onNavigate?: () => void; collapsed?: boolean; onToggle?: () => void }) {
   const { user } = useAuth();
   if (!user) return null;
   return (
-    <nav aria-label="Main" className="flex h-full flex-col bg-navy text-white/80">
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <img src="/favicon.svg" alt="" className="h-8 w-8" />
-        <div className="leading-tight">
-          <p className="text-[15px] font-semibold text-white">SUMA</p>
-          <p className="text-[11px] text-white/50">Tracking tool</p>
-        </div>
+    <nav aria-label="Main" className="glass flex h-full flex-col overflow-hidden">
+      <div className={cn('flex h-[72px] items-center gap-3 px-5', collapsed && 'justify-center px-0')}>
+        <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0 rounded-[10px] shadow-glow" />
+        {!collapsed && (
+          <div className="leading-tight">
+            <p className="font-display text-[17px] font-bold tracking-tight">SUMA</p>
+            <p className="text-[11px] text-muted-foreground">Tracking tool</p>
+          </div>
+        )}
       </div>
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-6 pt-2">
+      <div className={cn('flex-1 space-y-5 overflow-y-auto pb-4 pt-1', collapsed ? 'px-2' : 'px-3')}>
         {visibleNav(user).map((g) => (
           <div key={g.label}>
-            <p className="px-2 pb-1.5 text-[11px] font-medium text-white/40">{g.label}</p>
+            {!collapsed ? <p className="px-3 pb-1.5 text-[11px] font-semibold text-muted-foreground/80">{g.label}</p> : <div className="mx-3 mb-2 h-px bg-border" />}
             <ul className="space-y-0.5">
               {g.items.map((i) => (
                 <li key={i.to}>
-                  <NavLink to={i.to} end={i.to === '/attendance'} onClick={onNavigate}
-                    className={({ isActive }) => cn('group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors',
-                      isActive ? 'bg-white/10 text-white' : 'hover:bg-white/5 hover:text-white')}>
+                  <NavLink to={i.to} end={i.to === '/attendance'} onClick={onNavigate} title={collapsed ? i.label : undefined}
+                    aria-label={collapsed ? i.label : undefined}
+                    className={({ isActive }) => cn('group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-colors',
+                      collapsed && 'justify-center px-0',
+                      isActive ? 'text-white' : 'text-foreground/70 hover:bg-accent hover:text-foreground')}>
                     {({ isActive }) => (
                       <>
-                        {isActive && <motion.span layoutId="nav-active" className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-[#7FA8FF]" />}
-                        <i.icon className="h-4 w-4 shrink-0" aria-hidden />
-                        {i.label}
+                        {isActive && <motion.span layoutId="nav-active" className="absolute inset-0 rounded-xl bg-brand shadow-glow" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}
+                        <i.icon className="relative h-[18px] w-[18px] shrink-0" aria-hidden />
+                        {!collapsed && <span className="relative">{i.label}</span>}
                       </>
                     )}
                   </NavLink>
@@ -54,7 +59,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </div>
-      <div className="border-t border-white/10 px-5 py-3 text-[11px] text-white/40">Signed in as {titleCase(user.role)}{user.projectLead ? ' · Project Lead' : ''}</div>
+      {onToggle && (
+        <button onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="m-3 flex items-center justify-center gap-2 rounded-xl bg-muted py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" /> Collapse</>}
+        </button>
+      )}
     </nav>
   );
 }
@@ -82,12 +92,12 @@ function NotificationsMenu() {
   return (
     <DropdownMenu onOpenChange={open}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Notifications${count ? `, ${count} unread` : ''}`} className="relative">
+        <Button variant="ghost" size="icon" aria-label={`Notifications${count ? `, ${count} unread` : ''}`} className="relative h-9 w-9">
           <Bell />
           <AnimatePresence>
             {count > 0 && (
               <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                className="num absolute right-1 top-1 min-w-[16px] rounded-full bg-breach px-1 text-[10px] font-semibold leading-4 text-white">{count > 99 ? '99+' : count}</motion.span>
+                className="num absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-breach px-1 text-[10px] font-bold leading-[18px] text-white ring-2 ring-card">{count > 99 ? '99+' : count}</motion.span>
             )}
           </AnimatePresence>
         </Button>
@@ -123,9 +133,17 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobile, setMobile] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('suma.sidebar') === 'collapsed'; } catch { return false; } });
   useEffect(() => setMobile(false), [location.pathname]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((p) => !p); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   if (!user) return null;
 
+  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('suma.sidebar', n ? 'collapsed' : 'open'); } catch { /* ignore */ } return n; });
   const switchTheme = async () => {
     const next = toggle();
     try {
@@ -140,55 +158,70 @@ export function AppShell() {
     toast.success('Signed out');
     navigate('/login', { replace: true });
   };
+  const side = collapsed ? 'lg:pl-[104px]' : 'lg:pl-[272px]';
 
   return (
     <AttendanceProvider>
       <div className="flex min-h-screen">
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 lg:block"><Sidebar /></aside>
+        <aside className={cn('fixed inset-y-3 left-3 z-30 hidden transition-[width] duration-300 lg:block', collapsed ? 'w-[80px]' : 'w-[248px]')}>
+          <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
+        </aside>
         <AnimatePresence>
           {mobile && (
             <>
-              <motion.div className="fixed inset-0 z-40 bg-navy-900/50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobile(false)} />
-              <motion.aside className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden" initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
-                <button className="absolute right-3 top-4 z-10 rounded p-1 text-white/70 hover:text-white" onClick={() => setMobile(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
+              <motion.div className="fixed inset-0 z-40 bg-navy-900/40 backdrop-blur-sm lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobile(false)} />
+              <motion.aside className="fixed inset-y-3 left-3 z-50 w-[260px] lg:hidden" initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
+                <button className="absolute right-3 top-5 z-10 rounded-full p-1.5 text-muted-foreground hover:bg-accent" onClick={() => setMobile(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
                 <Sidebar onNavigate={() => setMobile(false)} />
               </motion.aside>
             </>
           )}
         </AnimatePresence>
-        <div className="flex min-w-0 flex-1 flex-col lg:pl-60">
-          <header className="glass sticky top-0 z-20 flex h-14 items-center gap-2 rounded-none border-x-0 border-t-0 px-4 sm:px-6">
+        <div className={cn('flex min-w-0 flex-1 flex-col transition-[padding] duration-300', side)}>
+          <header className="sticky top-0 z-20 flex h-[72px] items-center gap-2 bg-background/70 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobile(true)} aria-label="Open menu"><Menu /></Button>
+            <button onClick={() => setPalette(true)} aria-label="Search (Ctrl+K)"
+              className="glass flex h-10 min-w-0 items-center gap-2.5 rounded-full px-4 text-sm text-muted-foreground transition-shadow hover:shadow-lift sm:w-72">
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="hidden truncate sm:inline">Search pages and tickets</span>
+              <kbd className="ml-auto hidden rounded-md bg-muted px-1.5 py-0.5 text-[11px] sm:inline">Ctrl K</kbd>
+            </button>
             <div className="flex-1" />
             {can('ATTENDANCE_SELF') && <BreakPill />}
-            <NotificationsMenu />
-            <Button variant="ghost" size="icon" onClick={switchTheme} aria-label={theme === 'DARK' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'DARK' ? <Sun /> : <Moon />}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-accent" aria-label="Account menu">
-                  <Avatar name={user.fullName} />
-                  <span className="hidden text-sm font-medium md:inline">{user.fullName}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user.email}<br />{user.employeeCode}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => navigate('/profile')}><UserRound /> Profile & password</DropdownMenuItem>
-                <DropdownMenuItem onSelect={signOut} className="text-breach"><LogOut /> Sign out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="glass flex items-center gap-0.5 rounded-full p-1">
+              <NotificationsMenu />
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={switchTheme} aria-label={theme === 'DARK' ? 'Switch to light mode' : 'Switch to dark mode'}>
+                {theme === 'DARK' ? <Sun /> : <Moon />}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-3 hover:bg-accent" aria-label="Account menu">
+                    <Avatar name={user.fullName} className="h-8 w-8" />
+                    <span className="hidden text-left leading-tight md:block">
+                      <span className="block text-[13px] font-semibold">{user.fullName}</span>
+                      <span className="block text-[11px] text-muted-foreground">{titleCase(user.role)}{user.projectLead ? ' · Project Lead' : ''}</span>
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{user.email}<br />{user.employeeCode}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/profile')}><UserRound /> Profile & password</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={signOut} className="text-breach"><LogOut /> Sign out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
-          <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
             <AnimatePresence mode="wait">
-              <motion.div key={location.pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+              <motion.div key={location.pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                 <Outlet />
               </motion.div>
             </AnimatePresence>
           </main>
         </div>
       </div>
+      <CommandPalette open={palette} onOpenChange={setPalette} />
       {can('ATTENDANCE_SELF') && <ActivityMonitor />}
     </AttendanceProvider>
   );

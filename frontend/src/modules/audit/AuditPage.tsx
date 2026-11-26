@@ -20,7 +20,7 @@ export default function AuditPage() {
     <>
       <PageHeader title="Audit trail" description="Every administrative and security-relevant change, with who made it, from where and when." />
       <Card>
-        <div className="flex flex-wrap gap-2 border-b p-3">
+        <div className="flex flex-wrap gap-2 p-4">
           <div className="relative w-full sm:w-64"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" aria-label="Action contains" placeholder="Action, e.g. SESSION" value={action} onChange={(e) => { setPage(0); setAction(e.target.value); }} /></div>
           <Input className="w-48" aria-label="Entity type" placeholder="Entity, e.g. Project" value={entityType} onChange={(e) => { setPage(0); setEntityType(e.target.value); }} />
         </div>

@@ -4,14 +4,14 @@ import { cn } from '@/utils/cn';
 
 export const Tabs = TabsPrimitive.Root;
 export const TabsList = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof TabsPrimitive.List>>(({ className, ...props }, ref) => (
-  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-9 items-center gap-1 rounded-lg border bg-card/60 p-1 text-muted-foreground overflow-x-auto max-w-full', className)} {...props} />
+  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-11 max-w-full items-center gap-1 overflow-x-auto rounded-full bg-card p-1 text-muted-foreground shadow-glass', className)} {...props} />
 ));
 TabsList.displayName = 'TabsList';
 export const TabsTrigger = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>>(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger ref={ref} className={cn('inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm hover:text-foreground', className)} {...props} />
+  <TabsPrimitive.Trigger ref={ref} className={cn('inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-all hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-glow', className)} {...props} />
 ));
 TabsTrigger.displayName = 'TabsTrigger';
 export const TabsContent = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof TabsPrimitive.Content>>(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content ref={ref} className={cn('mt-4 focus-visible:outline-none', className)} {...props} />
+  <TabsPrimitive.Content ref={ref} className={cn('mt-5 focus-visible:outline-none data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-1', className)} {...props} />
 ));
 TabsContent.displayName = 'TabsContent';

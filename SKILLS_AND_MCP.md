@@ -22,7 +22,8 @@ installed in other environments.
 |---|---|---|
 | `frontend-design` | yes | Read before building the UI. Applied its process: a compact token plan (palette, type, layout, one signature element) reviewed against the brief before coding; sentence-case copy; motion limited to page transitions, counters, dialogs, nav indicator and the shift-timeline reveal; reduced-motion respected; responsive to 390 px verified. |
 | `security-review`, `code-review`, `simplify` | not yet run | Recommended next step on the full diff (see report). |
-| `dataviz` | no | Charts follow a single restrained palette defined in `frontend/src/utils/chart.ts`. |
+| `dataviz` | guidance applied | One hue per meaning across charts (`frontend/src/utils/chart.ts`), rounded bars, gradient areas, direct legends. |
+| WebSearch | yes (redesign) | Pinterest requires sign-in, so 2026 bento/SaaS dashboard references were researched instead (e.g. saasframe.io bento guide: tile size must carry meaning; restrained soft depth). |
 | Supabase / Lovable / Expo / Unity / game skills | not applicable | Out of scope for this stack; not used. |
 
 ## Verification tooling written in this project

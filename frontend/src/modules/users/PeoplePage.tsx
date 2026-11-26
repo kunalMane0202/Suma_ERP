@@ -60,7 +60,7 @@ function Employees() {
   };
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-2 border-b p-3">
+      <div className="flex flex-wrap items-center gap-2 p-4">
         <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-8" placeholder="Search name, code, username or email" aria-label="Search employees" value={q} onChange={(e) => { setPage(0); setQ(e.target.value); }} /></div>
         <NativeSelect aria-label="Role" className="w-40" value={role} onChange={(e) => setRole(e.target.value)}><option value="">All roles</option>{['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3'].map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}</NativeSelect>

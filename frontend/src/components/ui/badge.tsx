@@ -2,16 +2,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/utils/cn';
 
-const badgeVariants = cva('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap', {
+const badgeVariants = cva('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:opacity-80', {
   variants: {
     tone: {
-      neutral: 'border-border bg-secondary text-secondary-foreground',
-      blue: 'border-primary/20 bg-primary/10 text-primary',
-      green: 'border-ok/25 bg-ok/10 text-ok',
-      amber: 'border-warn/30 bg-warn/10 text-warn',
-      red: 'border-breach/25 bg-breach/10 text-breach',
-      violet: 'border-idle/25 bg-idle/10 text-idle',
-      navy: 'border-transparent bg-navy text-white',
+      neutral: 'bg-secondary text-secondary-foreground',
+      blue: 'bg-primary/10 text-primary',
+      green: 'bg-ok/15 text-ok',
+      amber: 'bg-warn/15 text-warn',
+      red: 'bg-breach/15 text-breach',
+      violet: 'bg-idle/15 text-idle',
+      navy: 'bg-brand text-white before:bg-white',
     },
   },
   defaultVariants: { tone: 'neutral' },

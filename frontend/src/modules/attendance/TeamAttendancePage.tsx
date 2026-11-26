@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import { Download, FileSpreadsheet, FileText, Mail, RefreshCw, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,7 +12,7 @@ import { Field } from '@/components/ui/label';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import { Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
+import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination, Stat } from '@/components/common';
 import { ShiftTimeline, TimelineLegend } from '@/components/ShiftTimeline';
 import { useApi } from '@/hooks/useApi';
 import { useLookups } from '@/hooks/useLookups';
@@ -22,6 +23,7 @@ import { dateTime, duration, isoDate, relative, time, titleCase } from '@/utils/
 import type { AttendanceDashboard, DailyReport, MonthlyReport, ReportLog } from '@/types/attendance';
 import type { Page } from '@/types/api';
 
+const statusBar: Record<string, string> = { WORKING: 'bg-ok', ON_BREAK: 'bg-warn', IDLE: 'bg-idle', AWAY: 'bg-muted-foreground/50', NOT_LOGGED_IN: 'bg-breach/60', LOGGED_OUT: 'bg-muted-foreground/30' };
 const liveTone: Record<string, BadgeTone> = { WORKING: 'green', ON_BREAK: 'amber', IDLE: 'violet', AWAY: 'neutral', LOGGED_OUT: 'neutral', NOT_LOGGED_IN: 'red', WEEKLY_OFF: 'neutral', OFFLINE: 'neutral' };
 
 function Filters({ value, onChange }: { value: Record<string, string | undefined>; onChange: (v: Record<string, string | undefined>) => void }) {
@@ -76,6 +78,7 @@ export default function TeamAttendancePage() {
 
 function LiveTab() {
   const [f, setF] = useState<Record<string, string | undefined>>({});
+  const [view, setView] = useState<'cards' | 'table'>('cards');
   const { data, error, loading, reload } = useApi<AttendanceDashboard>('/attendance/summary', clean(f), { interval: 30_000 });
   return (
     <div className="space-y-4">
@@ -99,27 +102,57 @@ function LiveTab() {
           </div>
           <div className="grid gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
-              <CardHeader><div><CardTitle>Employee status</CardTitle><CardDescription>{data.date} · times in {data.timezone}</CardDescription></div></CardHeader>
-              <CardContent className="px-0">
-                <Table>
-                  <THead><TR><TH>Employee</TH><TH>Status</TH><TH>First sign-in</TH><TH>Last activity</TH><TH>Breaks today</TH><TH>Project · team</TH></TR></THead>
-                  <TBody>
-                    {data.live.map((r) => (
-                      <TR key={r.userId}>
-                        <TD><p className="font-medium">{r.fullName}</p><p className="text-xs text-muted-foreground">{r.employeeCode}</p></TD>
-                        <TD>
+              <CardHeader>
+                <div><CardTitle>Employee status</CardTitle><CardDescription>{data.date} · times in {data.timezone}</CardDescription></div>
+                <div className="flex rounded-full bg-muted p-1" role="group" aria-label="Layout">
+                  {(['cards', 'table'] as const).map((v) => (
+                    <button key={v} onClick={() => setView(v)} aria-pressed={view === v}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${view === v ? 'bg-card text-foreground shadow-glass' : 'text-muted-foreground'}`}>{v === 'cards' ? 'Cards' : 'Table'}</button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent className={view === 'table' ? 'px-0' : ''}>
+                {view === 'cards' ? (
+                  <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                    {data.live.map((r, i) => (
+                      <motion.div key={r.userId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}
+                        className={`relative overflow-hidden rounded-2xl bg-muted/60 p-4 ring-1 ring-transparent transition hover:bg-card hover:shadow-lift hover:ring-border ${r.breakExceeded ? 'ring-breach/40' : ''}`}>
+                        <span className={`absolute inset-y-0 left-0 w-1 ${statusBar[r.status] ?? 'bg-muted-foreground/30'}`} />
+                        <div className="flex items-center gap-3">
+                          <div className="relative"><Avatar name={r.fullName} className="h-10 w-10" />
+                            <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full ring-2 ring-card ${statusBar[r.status] ?? 'bg-muted-foreground/40'}`} /></div>
+                          <div className="min-w-0 flex-1"><p className="truncate font-semibold">{r.fullName}</p><p className="truncate text-xs text-muted-foreground">{r.employeeCode}{r.teamName ? ` · ${r.teamName}` : ''}</p></div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between">
                           <Badge tone={liveTone[r.status] ?? 'neutral'}>{r.status === 'IDLE' ? 'Idle' : titleCase(r.status)}</Badge>
-                          {r.breakStartedAt && <p className="mt-0.5 text-xs text-muted-foreground">since {time(r.breakStartedAt, data.timezone)}</p>}
-                          {r.idleSince && <p className="mt-0.5 text-xs text-muted-foreground">no activity since {time(r.idleSince, data.timezone)}</p>}
-                        </TD>
-                        <TD className="num">{time(r.loginAt, data.timezone)}</TD>
-                        <TD className="text-xs text-muted-foreground">{r.lastActivityAt ? relative(r.lastActivityAt) : '—'}</TD>
-                        <TD className={`num ${r.breakExceeded ? 'text-breach' : ''}`}>{r.todayBreakCount} · {duration(r.todayBreakSeconds)}</TD>
-                        <TD className="text-xs text-muted-foreground">{r.projectName ?? '—'}{r.teamName ? ` · ${r.teamName}` : ''}</TD>
-                      </TR>
+                          <span className="text-xs text-muted-foreground">
+                            {r.breakStartedAt ? `break since ${time(r.breakStartedAt, data.timezone)}` : r.idleSince ? `idle since ${time(r.idleSince, data.timezone)}` : r.loginAt ? `in at ${time(r.loginAt, data.timezone)}` : '—'}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg bg-card/80 px-2.5 py-1.5"><p className="text-muted-foreground">Breaks</p><p className={`display-num ${r.breakExceeded ? 'text-breach' : ''}`}>{r.todayBreakCount} · {duration(r.todayBreakSeconds)}</p></div>
+                          <div className="rounded-lg bg-card/80 px-2.5 py-1.5"><p className="text-muted-foreground">Last activity</p><p className="display-num">{r.lastActivityAt ? relative(r.lastActivityAt) : '—'}</p></div>
+                        </div>
+                      </motion.div>
                     ))}
-                  </TBody>
-                </Table>
+                  </div>
+                ) : (
+                  <Table>
+                    <THead><TR><TH>Employee</TH><TH>Status</TH><TH>First sign-in</TH><TH>Last activity</TH><TH>Breaks today</TH><TH>Project · team</TH></TR></THead>
+                    <TBody>
+                      {data.live.map((r) => (
+                        <TR key={r.userId}>
+                          <TD><p className="font-medium">{r.fullName}</p><p className="text-xs text-muted-foreground">{r.employeeCode}</p></TD>
+                          <TD><Badge tone={liveTone[r.status] ?? 'neutral'}>{r.status === 'IDLE' ? 'Idle' : titleCase(r.status)}</Badge></TD>
+                          <TD className="num">{time(r.loginAt, data.timezone)}</TD>
+                          <TD className="text-xs text-muted-foreground">{r.lastActivityAt ? relative(r.lastActivityAt) : '—'}</TD>
+                          <TD className={`num ${r.breakExceeded ? 'text-breach' : ''}`}>{r.todayBreakCount} · {duration(r.todayBreakSeconds)}</TD>
+                          <TD className="text-xs text-muted-foreground">{r.projectName ?? '—'}{r.teamName ? ` · ${r.teamName}` : ''}</TD>
+                        </TR>
+                      ))}
+                    </TBody>
+                  </Table>
+                )}
                 {data.live.length === 0 && <EmptyState title="No employees in this scope" />}
               </CardContent>
             </Card>
@@ -132,8 +165,8 @@ function LiveTab() {
                     <XAxis dataKey="hour" tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: CHART.axis }} tickLine={false} axisLine={false} />
                     <RTooltip {...tooltipStyle} labelFormatter={(h) => `${h}:00`} />
-                    <Bar dataKey="logins" name="Sign-ins" fill={CHART.primary} radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="breaks" name="Breaks started" fill={CHART.warn} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="logins" name="Sign-ins" fill={CHART.primary} radius={[6, 6, 6, 6]} barSize={10} />
+                    <Bar dataKey="breaks" name="Breaks started" fill={CHART.warn} radius={[6, 6, 6, 6]} barSize={10} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
