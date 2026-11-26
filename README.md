@@ -16,10 +16,10 @@ in-app inactivity prompts, automated monthly attendance reports to Project Leads
 Prerequisites: Java 21, Maven 3.9, Node 22, PostgreSQL 16.
 
 ```bash
-# 1. database
-createuser -P suma            # password: suma (dev only)
-createdb -O suma suma
-createdb -O suma suma_test    # for integration tests
+# 1. database (local PostgreSQL listens on port 5432; replace postgres if your admin role differs)
+createuser -U postgres -h localhost -p 5432 -P suma   # role password: suma (dev only)
+createdb -U postgres -h localhost -p 5432 -O suma suma
+createdb -U postgres -h localhost -p 5432 -O suma suma_test    # for integration tests
 
 # 2. backend (http://localhost:8080, Swagger at /swagger-ui.html)
 cd backend
@@ -40,6 +40,7 @@ docker compose up --build
 ```
 
 App on http://localhost:8081, captured emails (Mailpit) on http://localhost:8025. See `docs/deployment/DEPLOYMENT.md`.
+The backend is also available on `127.0.0.1:18080` for the Vite development server's `/api` proxy.
 
 ## Tests
 

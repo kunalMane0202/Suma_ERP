@@ -3,6 +3,7 @@ package com.suma.attendance;
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import com.suma.notification.EmailDeliveryService;
+import com.suma.notification.NotificationService;
 import com.suma.support.IntegrationTest;
 import com.suma.user.User;
 import jakarta.mail.internet.MimeMessage;
@@ -26,6 +27,7 @@ class MonthlyReportIT extends IntegrationTest {
     static GreenMail smtp;
     @Autowired MonthlyReportService monthly;
     @Autowired EmailDeliveryService delivery;
+    @Autowired NotificationService notifications;
 
     @BeforeAll
     static void startSmtp() {
@@ -69,6 +71,22 @@ class MonthlyReportIT extends IntegrationTest {
         MimeMessage m = received[received.length - 1];
         assertThat(m.getSubject()).contains("2026-12");
         assertThat(((MimeMultipart) m.getContent()).getCount()).isEqualTo(2); // body + Excel attachment
+    }
+
+    @Test
+    void clearsPasswordActionEmailBodyAfterSuccessfulDelivery() throws Exception {
+        String token = UUID.randomUUID().toString();
+        String recipient = "password-action@test.suma.local";
+        var email = notifications.enqueueEmail(recipient, "Set up your account", "Use token " + token,
+                null, null, null, "PasswordAction", UUID.randomUUID().toString(), 5);
+
+        delivery.processDue(50);
+
+        assertThat(jdbc.queryForObject("select body from email_outbox where id = ?", String.class, email.getId())).isEmpty();
+        assertThat(jdbc.queryForObject("select status from email_outbox where id = ?", String.class, email.getId())).isEqualTo("SENT");
+        MimeMessage[] received = smtp.getReceivedMessagesForDomain("test.suma.local");
+        assertThat(received).hasSize(1);
+        assertThat(received[0].getContent().toString()).contains(token);
     }
 
     @Test

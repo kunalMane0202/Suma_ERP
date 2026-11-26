@@ -4,7 +4,7 @@ import { Lock, ShieldCheck } from 'lucide-react';
 import { LiveDot, RadialGauge } from '@/components/viz';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,10 @@ export function LoginPage() {
             {error && <p role="alert" className="rounded-xl bg-breach/10 px-3.5 py-2.5 text-sm font-medium text-breach">{error}</p>}
             <Button type="submit" className="w-full" size="lg" loading={isSubmitting}><Lock /> Sign in</Button>
           </form>
+          <div className="mt-4 flex justify-between text-sm">
+            <Link to="/forgot-password" className="font-medium text-primary hover:underline">Forgot password?</Link>
+            <Link to="/request-account" className="font-medium text-primary hover:underline">Request an account</Link>
+          </div>
           <div className="mt-7 flex gap-3 rounded-xl bg-muted/70 p-3.5 text-xs leading-relaxed text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <p>Sign-ins are recorded with your network address for security. While signed in, SUMA records your sign-in and sign-out times,

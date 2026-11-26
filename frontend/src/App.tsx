@@ -6,6 +6,9 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppShell } from '@/layouts/AppShell';
 const LoginPage = lazy(() => import('@/modules/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
+const RegistrationRequestPage = lazy(() => import('@/modules/auth/AccountAccessPage').then((m) => ({ default: m.RegistrationRequestPage })));
+const ForgotPasswordPage = lazy(() => import('@/modules/auth/AccountAccessPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const PasswordActionPage = lazy(() => import('@/modules/auth/AccountAccessPage').then((m) => ({ default: m.PasswordActionPage })));
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Me } from '@/types/api';
 
@@ -85,6 +88,9 @@ export function AppRoutes() {
     <Suspense fallback={<div className="p-8"><Loading /></div>}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/request-account" element={<RegistrationRequestPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/set-password" element={<PasswordActionPage />} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route index element={<Home />} />
           <Route path="dashboard" element={<Guard allow={has('DASHBOARD_VIEW')}><DashboardPage /></Guard>} />

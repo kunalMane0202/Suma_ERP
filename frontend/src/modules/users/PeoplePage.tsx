@@ -27,22 +27,108 @@ import type { Page, Shift, Team, UserRow } from '@/types/api';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function PeoplePage() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  const canReviewRequests = user?.role === 'ADMIN' && can('USER_WRITE');
   return (
     <>
       <PageHeader title="People & teams" description="Employees, roles, shifts, weekly offs, team membership and current workload." />
       <UrlTabs fallback={can('USER_READ') ? 'people' : 'teams'}>
         <TabsList>
           {can('USER_READ') && <TabsTrigger value="people">Employees</TabsTrigger>}
+          {canReviewRequests && <TabsTrigger value="requests">Account requests</TabsTrigger>}
           {can('TEAM_READ') && <TabsTrigger value="teams">Teams</TabsTrigger>}
           {can('USER_READ') && <TabsTrigger value="workload">Workload</TabsTrigger>}
           <TabsTrigger value="shifts">Shifts</TabsTrigger>
         </TabsList>
         <TabsContent value="people"><Employees /></TabsContent>
+        <TabsContent value="requests">{canReviewRequests && <AccountRequests />}</TabsContent>
         <TabsContent value="teams"><Teams /></TabsContent>
         <TabsContent value="workload"><Workload /></TabsContent>
         <TabsContent value="shifts"><Shifts /></TabsContent>
       </UrlTabs>
+    </>
+  );
+}
+
+interface AccountRequestRow { id: string; fullName: string; email: string; createdAt: string }
+
+const approveSchema = z.object({
+  employeeCode: z.string().trim().min(2).max(40).regex(/^[A-Za-z0-9_-]+$/, 'Letters, numbers, - and _ only'),
+  username: z.string().trim().min(3).max(80).regex(/^[A-Za-z0-9._-]+$/, 'Letters, numbers, . - _ only'),
+  role: z.enum(['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3']),
+});
+type ApproveForm = z.infer<typeof approveSchema>;
+
+function AccountRequests() {
+  const { data, error, loading, reload } = useApi<AccountRequestRow[]>('/account-requests');
+  const [reviewing, setReviewing] = useState<AccountRequestRow | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ApproveForm>({
+    resolver: zodResolver(approveSchema), defaultValues: { employeeCode: '', username: '', role: 'L1' },
+  });
+  useEffect(() => { reset({ employeeCode: '', username: '', role: 'L1' }); }, [reviewing, reset]);
+
+  const approve = async (value: ApproveForm) => {
+    if (!reviewing) return;
+    try {
+      await api.post(`/account-requests/${reviewing.id}/approve`, value);
+      toast.success('Account approved. A password setup link has been queued for email.');
+      setReviewing(null);
+      invalidateLookups();
+      reload();
+    } catch (e) { toast.error(errorMessage(e)); }
+  };
+
+  const reject = async (request: AccountRequestRow) => {
+    setRejectingId(request.id);
+    try {
+      await api.post(`/account-requests/${request.id}/reject`);
+      toast.success('Account request rejected');
+      reload();
+    } catch (e) { toast.error(errorMessage(e)); }
+    finally { setRejectingId(null); }
+  };
+
+  return (
+    <>
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {loading && !data ? <Card><TableSkeleton /></Card> : data && (data.length === 0 ? (
+        <Card><EmptyState title="No account requests" description="New account requests will appear here for review." /></Card>
+      ) : (
+        <Card className="pt-2">
+          <Table>
+            <THead><TR><TH>Requested by</TH><TH>Work email</TH><TH>Submitted</TH><TH /></TR></THead>
+            <TBody>
+              {data.map((request) => (
+                <TR key={request.id}>
+                  <TD className="font-medium">{request.fullName}</TD>
+                  <TD className="text-sm">{request.email}</TD>
+                  <TD className="text-xs text-muted-foreground">{new Date(request.createdAt).toLocaleString()}</TD>
+                  <TD className="text-right whitespace-nowrap">
+                    <Button variant="outline" size="sm" onClick={() => setReviewing(request)}>Review</Button>
+                    <Button variant="ghost" size="sm" loading={rejectingId === request.id} onClick={() => reject(request)}>Reject</Button>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      ))}
+      <Dialog open={!!reviewing} onOpenChange={(open) => !open && setReviewing(null)}
+        title="Approve account request" description={reviewing ? `${reviewing.fullName} · ${reviewing.email}` : ''}
+        footer={<><Button variant="outline" onClick={() => setReviewing(null)}>Cancel</Button><Button loading={isSubmitting} onClick={handleSubmit(approve)}>Approve & email setup link</Button></>}>
+        <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit(approve)} noValidate>
+          <Field label="Employee code" htmlFor="request-code" error={errors.employeeCode?.message}>
+            <Input id="request-code" autoComplete="off" {...register('employeeCode')} />
+          </Field>
+          <Field label="Username" htmlFor="request-username" error={errors.username?.message}>
+            <Input id="request-username" autoComplete="off" {...register('username')} />
+          </Field>
+          <Field label="Role" htmlFor="request-role">
+            <NativeSelect id="request-role" {...register('role')}>{['ADMIN', 'MANAGER', 'TEAM_LEADER', 'L1', 'L2', 'L3'].map((role) => <option key={role} value={role}>{titleCase(role)}</option>)}</NativeSelect>
+          </Field>
+        </form>
+      </Dialog>
     </>
   );
 }
@@ -144,14 +230,15 @@ const userSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE', 'LOCKED']),
   weeklyOffs: z.array(z.string()),
 });
-type UserForm = z.infer<typeof userSchema>;
+type UserFormInput = z.input<typeof userSchema>;
+type UserForm = z.output<typeof userSchema>;
 
 function UserDialog({ user, onClose }: { user: UserRow | null; onClose: (c: boolean) => void }) {
   const shifts = useApi<Shift[]>('/shifts');
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<UserForm>({ resolver: zodResolver(userSchema), defaultValues: { role: 'L1', status: 'ACTIVE', weeklyOffs: ['7'] } });
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<UserFormInput, undefined, UserForm>({ resolver: zodResolver(userSchema), defaultValues: { role: 'L1', status: 'ACTIVE', weeklyOffs: ['7'] } });
   useEffect(() => {
     if (user) reset({ employeeCode: user.employeeCode, username: user.username, email: user.email, fullName: user.fullName, phone: user.phone ?? '', jobTitle: user.jobTitle ?? '',
-      role: user.role, shiftId: user.shiftId ?? '', timezone: user.timezone ?? '', maxOpenTickets: user.maxOpenTickets ?? '', password: '', status: user.status as UserForm['status'],
+      role: user.role, shiftId: user.shiftId ?? '', timezone: user.timezone ?? '', maxOpenTickets: user.maxOpenTickets ?? '', password: '', status: user.status as UserFormInput['status'],
       weeklyOffs: user.weeklyOffs.map(String) });
   }, [user, reset]);
   const submit = async (v: UserForm) => {

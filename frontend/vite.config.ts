@@ -8,11 +8,11 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   server: {
     port: 5173,
-    proxy: { '/api': { target: process.env.SUMA_API ?? 'http://localhost:8080', changeOrigin: false } },
+    proxy: { '/api': { target: process.env.SUMA_API ?? 'http://localhost:18080', changeOrigin: false } },
   },
   preview: {
     port: 4173,
-    proxy: { '/api': { target: process.env.SUMA_API ?? 'http://localhost:8080', changeOrigin: false } },
+    proxy: { '/api': { target: process.env.SUMA_API ?? 'http://localhost:18080', changeOrigin: false } },
   },
   build: {
     chunkSizeWarningLimit: 900,

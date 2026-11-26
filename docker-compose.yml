@@ -34,14 +34,15 @@ services:
       SUMA_SMTP_HOST: ${SUMA_SMTP_HOST:-mailpit}
       SUMA_SMTP_PORT: ${SUMA_SMTP_PORT:-1025}
       SUMA_MAIL_FROM: ${SUMA_MAIL_FROM:-suma-noreply@localhost}
+      SUMA_PUBLIC_URL: ${SUMA_PUBLIC_URL:-http://localhost:8081}
       SUMA_TRUSTED_PROXIES: ${SUMA_TRUSTED_PROXIES:-172.16.0.0/12}
       SUMA_CORS_ORIGINS: ${SUMA_CORS_ORIGINS:-http://localhost:8081}
       SUMA_COOKIE_SECURE: ${SUMA_COOKIE_SECURE:-false}
       SUMA_DEMO_DATA: ${SUMA_DEMO_DATA:-false}
     volumes:
       - uploads:/app/uploads
-    expose:
-      - "8080"
+    ports:
+      - "127.0.0.1:18080:8080"
 
   frontend:
     build: ./frontend

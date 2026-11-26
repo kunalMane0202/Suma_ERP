@@ -1,18 +1,20 @@
 # SUMA Tracking Tool — Database schema
 
-PostgreSQL 16. The schema is owned by **Flyway** migrations in `backend/src/main/resources/db/migration` (`V1`–`V7`); Hibernate only validates it (`ddl-auto: validate`). This document is generated from the live schema and annotated.
+PostgreSQL 16. The schema is owned by **Flyway** migrations in `backend/src/main/resources/db/migration` (`V1`–`V8`); Hibernate only validates it (`ddl-auto: validate`). This document is generated from the live schema and annotated.
 
 ## Conventions
 
 - Primary keys are `UUID`. Timestamps are `timestamptz` and stored in **UTC**; attendance "work dates" are calculated in the configured reporting timezone.
 - Mutable business tables carry `created_at`, `updated_at` and an optimistic-locking `version` column.
 - Status-like columns are `varchar` with `CHECK` constraints (enumerations in code).
-- No passwords or tokens are stored in clear text: `users.password_hash` is BCrypt (cost 12); refresh tokens are stored as SHA-256 hashes; integration credentials are AES-256-GCM encrypted (`integrations.credentials_encrypted`).
+- Passwords use BCrypt (cost 12), refresh and password-action token tables store SHA-256 hashes, and integration credentials are AES-256-GCM encrypted (`integrations.credentials_encrypted`). Password-action links are single-use with a one-hour expiry; their outbox bodies are cleared after successful delivery.
 
 ## Key relationships
 
 ```
 users ─< user_sessions ─< refresh_tokens
+users ─< password_action_tokens
+account_registration_requests ─ reviewed_by / created_user_id → users
 users ─< attendance_sessions (1 per user_session, UNIQUE auth_session_id) ─< break_records
                                                                           ─< idle_events
 users ─< attendance_events (immutable history: login, logout, breaks, idle, confirmations, reminders, corrections)
@@ -36,6 +38,7 @@ clients ─< projects ─< tickets ─< ticket_comments / ticket_attachments / t
 | External tickets ingested once | partial unique index `uq_tickets_external (external_system, external_id)` |
 | Daily summary row per employee/day | `attendance_daily_summary UNIQUE (user_id, work_date)` |
 | Single global attendance settings row | partial unique index on `(project_id IS NULL)` |
+| One pending account request per email | partial unique index on `lower(email)` where status is `PENDING` |
 | Scheduled jobs never run concurrently | ShedLock table `shedlock` |
 
 ## Retention
@@ -120,6 +123,39 @@ Indexes: `btree (role_id)`; `btree (status)`; `btree (email)`; `btree (employee_
 | `day_of_week` | smallint | no |  |
 
 Indexes: `btree (user_id, day_of_week)`
+
+### `account_registration_requests`
+
+Public account requests remain pending until an administrator approves or rejects them. Approval creates an inactive user that can sign in only after setting a password from the emailed setup link.
+
+| Column | Type | Null | Default / reference |
+|---|---|---|---|
+| `id` | uuid | no |  |
+| `full_name` | character varying(150) | no |  |
+| `email` | character varying(200) | no |  |
+| `status` | character varying(20) | no | 'PENDING' |
+| `created_at` | timestamp with time zone | no | now() |
+| `reviewed_at` | timestamp with time zone | yes |  |
+| `reviewed_by` | uuid | yes | → `users` |
+| `created_user_id` | uuid | yes | → `users` |
+
+Indexes: unique `lower(email)` for pending requests; `btree (status, created_at)`
+
+### `password_action_tokens`
+
+Stores one-time setup and reset tokens as SHA-256 hashes. Tokens expire after one hour; an emailed token is invalidated on use or replacement.
+
+| Column | Type | Null | Default / reference |
+|---|---|---|---|
+| `id` | uuid | no |  |
+| `user_id` | uuid | no | → `users` |
+| `token_hash` | character varying(64) | no | unique |
+| `purpose` | character varying(20) | no | `SETUP` or `RESET` |
+| `created_at` | timestamp with time zone | no | now() |
+| `expires_at` | timestamp with time zone | no |  |
+| `used_at` | timestamp with time zone | yes |  |
+
+Indexes: unique `token_hash`; `btree (user_id, purpose)`
 
 ### `shifts`
 

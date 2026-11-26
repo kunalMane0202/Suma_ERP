@@ -13,6 +13,7 @@
 | `SUMA_CORS_ORIGINS` | Allowed browser origins | `http://localhost:5173,http://localhost:4173` |
 | `SUMA_COOKIE_SECURE` | Mark the refresh cookie `Secure` (set `true` behind HTTPS) | `false` |
 | `SUMA_SMTP_HOST` / `PORT` / `USER` / `PASSWORD` / `AUTH` / `STARTTLS`, `SUMA_MAIL_FROM` | Outgoing email | `localhost:1025` (Mailpit) |
+| `SUMA_PUBLIC_URL` | Public frontend URL used in account setup and password reset links | `http://localhost:5173` (Compose: `http://localhost:8081`) |
 | `SUMA_SCHEDULING_ENABLED` | Run background jobs on this node | `true` |
 | `SUMA_LOGIN_RATE_MAX` / `SUMA_LOGIN_RATE_WINDOW` | Login attempts per IP per window (seconds) | 20 / 300 |
 | `SUMA_UPLOADS_DIR` | Attachment storage path (persistent volume) | `./uploads` |
@@ -26,10 +27,11 @@
 3. Serve over HTTPS and set `SUMA_COOKIE_SECURE=true`.
 4. Configure `SUMA_TRUSTED_PROXIES` to exactly your load balancer / ingress ranges. The bundled nginx overwrites `X-Forwarded-For` with the client address; if another proxy sits in front of it, switch nginx to `$proxy_add_x_forwarded_for` and trust both hops.
 5. Point SMTP at your relay and verify each project's Project Lead email in the UI before the 1st of the month.
-6. Set the attendance reporting timezone and policy thresholds (Configuration → Attendance). Break limits are intentionally empty until your organisation defines them.
-7. Back up the PostgreSQL volume and the uploads volume.
-8. Set `SUMA_API_DOCS_ENABLED=false`. With `SUMA_COOKIE_SECURE=true` the backend refuses to start if the JWT secret or encryption key are still the development defaults.
-9. Running several backend instances is supported: ShedLock makes each scheduled job run on one node at a time. The session-validation cache is per node (20 s), so a terminated session can survive up to 20 s on other nodes.
+6. Set `SUMA_PUBLIC_URL` to the externally reachable frontend origin so account setup and password reset emails link to the right site.
+7. Set the attendance reporting timezone and policy thresholds (Configuration → Attendance). Break limits are intentionally empty until your organisation defines them.
+8. Back up the PostgreSQL volume and the uploads volume.
+9. Set `SUMA_API_DOCS_ENABLED=false`. With `SUMA_COOKIE_SECURE=true` the backend refuses to start if the JWT secret or encryption key are still the development defaults.
+10. Running several backend instances is supported: ShedLock makes each scheduled job run on one node at a time. The session-validation cache is per node (20 s), so a terminated session can survive up to 20 s on other nodes.
 
 ## Scheduled jobs
 

@@ -18,7 +18,10 @@ Base path: `/api/v1`. Interactive documentation: `/swagger-ui.html` (OpenAPI JSO
 | POST | `/api/v1/auth/login` | public | Authenticate with username/email and password |
 | POST | `/api/v1/auth/logout` | public | End the current session (idempotent). source=BROWSER_UNLOAD for best-effort tab-close beacons. |
 | GET | `/api/v1/auth/me` | authenticated |  |
+| POST | `/api/v1/auth/password-reset-requests` | public | Send a single-use, expiring password reset link when the email belongs to an active account; response does not reveal account existence |
+| POST | `/api/v1/auth/password/complete` | public | Complete account setup or password reset using the one-time token |
 | PUT | `/api/v1/auth/me/preferences` | authenticated |  |
+| POST | `/api/v1/auth/registration-requests` | public | Request an account for administrator review |
 | POST | `/api/v1/auth/refresh` | public | Rotate refresh token and obtain a new access token |
 
 ## Dashboard
@@ -71,6 +74,9 @@ Base path: `/api/v1`. Interactive documentation: `/swagger-ui.html` (OpenAPI JSO
 | PUT | `/api/v1/users/{id}` | `USER_WRITE` |  |
 | POST | `/api/v1/users/{id}/reset-password` | `USER_WRITE` |  |
 | POST | `/api/v1/users/{id}/unlock` | `USER_WRITE` |  |
+| GET | `/api/v1/account-requests` | administrator with `USER_WRITE` | List pending public account requests |
+| POST | `/api/v1/account-requests/{id}/approve` | administrator with `USER_WRITE` | Create an inactive account and email a one-time password setup link |
+| POST | `/api/v1/account-requests/{id}/reject` | administrator with `USER_WRITE` | Reject a pending account request |
 
 ## Teams
 

@@ -76,6 +76,7 @@ public class EmailDeliveryService {
             e.setStatus("SENT");
             e.setSentAt(now);
             e.setLastError(null);
+            if ("PasswordAction".equals(e.getRelatedType())) e.setBody("");
             log.info("Email {} sent to {}", e.getId(), mask(e.getRecipient()));
         } catch (Exception ex) {
             String err = ex.getClass().getSimpleName() + ": " + (ex.getMessage() == null ? "" : ex.getMessage());

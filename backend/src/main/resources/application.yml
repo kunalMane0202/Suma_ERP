@@ -68,6 +68,7 @@ springdoc:
     enabled: ${SUMA_API_DOCS_ENABLED:true}
 
 suma:
+  public-url: ${SUMA_PUBLIC_URL:http://localhost:5173}
   jwt:
     # Must be overridden in every non-dev environment (min 32 bytes)
     secret: ${SUMA_JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}

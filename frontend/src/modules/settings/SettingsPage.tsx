@@ -64,7 +64,8 @@ const settingsSchema = z.object({
   reportingTimezone: z.string().min(1), notifyTeamLeaderOnIdle: z.boolean(), monthlyReportEnabled: z.boolean(),
   monthlyReportHour: req(0, 23), emailMaxAttempts: req(1, 20), emailRetryBackoffMinutes: req(1, 1440), retentionDays: req(30, 3650),
 });
-type SettingsForm = z.infer<typeof settingsSchema>;
+type SettingsFormInput = z.input<typeof settingsSchema>;
+type SettingsForm = z.output<typeof settingsSchema>;
 
 function AttendanceSettingsTab() {
   const lk = useLookups();
@@ -72,8 +73,8 @@ function AttendanceSettingsTab() {
   const all = useApi<AttendanceSettings[]>('/attendance/settings');
   const current = all.data?.find((s) => (scope ? s.projectId === scope : !s.projectId)) ?? all.data?.find((s) => !s.projectId);
   const isOverride = !!scope && !!all.data?.find((s) => s.projectId === scope);
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<SettingsForm>({ resolver: zodResolver(settingsSchema) });
-  useEffect(() => { if (current) reset({ ...current, defaultWorkHours: current.defaultWorkHours ?? undefined } as SettingsForm); }, [current, reset]);
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<SettingsFormInput, undefined, SettingsForm>({ resolver: zodResolver(settingsSchema) });
+  useEffect(() => { if (current) reset({ ...current, defaultWorkHours: current.defaultWorkHours ?? undefined }); }, [current, reset]);
   const submit = async (v: SettingsForm) => {
     try {
       await api.put(scope ? `/attendance/settings/projects/${scope}` : '/attendance/settings', v);
@@ -82,7 +83,7 @@ function AttendanceSettingsTab() {
     } catch (e) { toast.error(errorMessage(e)); }
   };
   if (!all.data) return <TableSkeleton />;
-  const num = (name: keyof SettingsForm, label: string, hint?: string, placeholder?: string) => (
+  const num = (name: keyof SettingsFormInput, label: string, hint?: string, placeholder?: string) => (
     <Field label={label} htmlFor={`as-${name}`} error={errors[name]?.message as string | undefined} hint={hint}>
       <Input id={`as-${name}`} type="number" placeholder={placeholder} {...register(name)} />
     </Field>
