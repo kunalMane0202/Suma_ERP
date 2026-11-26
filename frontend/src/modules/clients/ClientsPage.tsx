@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { CardGrid, FilterBar, GridCard, SearchField, SegmentedControl } from '@/components/layout';
 import { useEffect, useState } from 'react';
+import { useUrlNumber, useUrlState } from '@/hooks/useUrlState';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,9 +24,9 @@ import type { Client, Page } from '@/types/api';
 const MONO = ['bg-gradient-to-br from-[#5B4CF0] to-[#8B5CF6]', 'bg-gradient-to-br from-[#12B886] to-[#2E9BF0]', 'bg-gradient-to-br from-[#F5A524] to-[#F0506E]', 'bg-gradient-to-br from-[#2E9BF0] to-[#5B4CF0]'];
 
 export default function ClientsPage() {
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(0);
-  const [status, setStatus] = useState('');
+  const [q, setQ] = useUrlState('q');
+  const [page, setPage] = useUrlNumber('page');
+  const [status, setStatus] = useUrlState('status');
   const { data, error, loading, reload } = useApi<Page<Client>>('/clients', { q: q || undefined, status: status || undefined, page, size: 20 });
   const [editing, setEditing] = useState<Client | null | undefined>(undefined);
   const [layout, setLayout] = useState<'cards' | 'table'>('cards');

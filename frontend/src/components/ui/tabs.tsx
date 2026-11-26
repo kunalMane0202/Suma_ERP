@@ -1,5 +1,6 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs';
-import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { useUrlState } from '@/hooks/useUrlState';
 import { cn } from '@/utils/cn';
 
 export const Tabs = TabsPrimitive.Root;
@@ -15,3 +16,9 @@ export const TabsContent = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<t
   <TabsPrimitive.Content ref={ref} className={cn('mt-5 focus-visible:outline-none data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-1', className)} {...props} />
 ));
 TabsContent.displayName = 'TabsContent';
+
+/** Tabs whose selected tab is kept in the address (?tab=), so a tab can be reloaded, bookmarked and shared. */
+export function UrlTabs({ fallback, children, param = 'tab', className }: { fallback: string; children: ReactNode; param?: string; className?: string }) {
+  const [value, setValue] = useUrlState(param, fallback);
+  return <TabsPrimitive.Root value={value} onValueChange={setValue} className={className}>{children}</TabsPrimitive.Root>;
+}

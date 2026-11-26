@@ -6,7 +6,7 @@ import { CardGrid, FeedItem, GridCard, IconTile } from '@/components/layout';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger, UrlTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
@@ -58,7 +58,7 @@ export default function AutomationPage() {
     <>
       <PageHeader title="Workflow & automation" description="Rules run as trigger → conditions → actions inside the same transaction as the ticket change. Attendance automations run on schedules configured under Configuration."
         actions={<Button onClick={() => open()}><Plus /> New rule</Button>} />
-      <Tabs defaultValue="rules">
+      <UrlTabs fallback="rules">
         <TabsList><TabsTrigger value="rules">Rules</TabsTrigger><TabsTrigger value="runs">Execution log</TabsTrigger><TabsTrigger value="approvals">Approvals</TabsTrigger><TabsTrigger value="scheduled">Scheduled automations</TabsTrigger></TabsList>
         <TabsContent value="rules">
           {(rules.data ?? []).length === 0 ? <Card><EmptyState title="No automation rules" /></Card> : (
@@ -125,7 +125,7 @@ export default function AutomationPage() {
             <CardContent><ul className="grid gap-2 sm:grid-cols-2">{(meta.data?.scheduledAttendanceAutomations ?? []).map((s) => <SchedItem key={s} text={s} />)}
               <SchedItem text="SLA breach detection and percentage escalations" /><SchedItem text="Pending-ticket reminders and auto-close of resolved tickets" /></ul></CardContent></Card>
         </TabsContent>
-      </Tabs>
+      </UrlTabs>
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.id ? 'Edit rule' : 'New rule'} className="max-w-3xl"
         footer={<><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button disabled={!edit?.name || !edit.actions.length} onClick={save}>Save rule</Button></>}>

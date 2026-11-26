@@ -106,9 +106,21 @@ public class AttendanceExportService {
             case "xlsx" -> new Export(xlsx(List.of(new Sheet("Monthly summary", MONTHLY_SUMMARY, summary),
                     new Sheet("Daily details", DAILY_HEADERS, daily), new Sheet("Break timings", BREAK_HEADERS, brk),
                     new Sheet("Idle events", IDLE_HEADERS, idle))), base + ".xlsx", XLSX);
-            case "pdf" -> new Export(pdf(title, summaryLine(r.totals()), MONTHLY_SUMMARY, summary, r.generatedAt(), z), base + ".pdf", "application/pdf");
+            case "pdf" -> new Export(pdf(title, summaryLine(r.totals()), List.of(
+                    new PdfSection("Summary", MONTHLY_SUMMARY, summary),
+                    new PdfSection("Daily details", PDF_DAILY_HEADERS, daily.stream().map(AttendanceExportService::compactDaily).toList()),
+                    new PdfSection("Break timings", BREAK_HEADERS, brk),
+                    new PdfSection("Idle events", IDLE_HEADERS, idle)), r.generatedAt(), z), base + ".pdf", "application/pdf");
             default -> throw new IllegalArgumentException("format must be csv, xlsx or pdf");
         };
+    }
+
+    /** Daily detail columns that fit a landscape PDF page (indexes into DAILY_HEADERS). */
+    private static final int[] PDF_DAILY_COLUMNS = {0, 1, 4, 5, 6, 7, 9, 10, 11, 14, 15};
+    private static final List<String> PDF_DAILY_HEADERS = java.util.Arrays.stream(PDF_DAILY_COLUMNS).mapToObj(DAILY_HEADERS::get).toList();
+
+    private static List<String> compactDaily(List<String> row) {
+        return java.util.Arrays.stream(PDF_DAILY_COLUMNS).mapToObj(row::get).toList();
     }
 
     // ------------------------------------------------------------------ cells
@@ -197,43 +209,57 @@ public class AttendanceExportService {
         }
     }
 
+    /** One table in a PDF; each section after the first starts on a new page. */
+    record PdfSection(String heading, List<String> headers, List<List<String>> rows) {}
+
     private static byte[] pdf(String title, String subtitle, List<String> headers, List<List<String>> rows, Instant generatedAt, ZoneId z) {
+        return pdf(title, subtitle, List.of(new PdfSection(null, headers, rows)), generatedAt, z);
+    }
+
+    private static byte[] pdf(String title, String subtitle, List<PdfSection> sections, Instant generatedAt, ZoneId z) {
         try (var out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4.rotate(), 20, 20, 24, 24);
             PdfWriter.getInstance(doc, out);
             doc.open();
             com.lowagie.text.Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(15, 23, 42));
+            com.lowagie.text.Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new Color(15, 23, 42));
             com.lowagie.text.Font small = FontFactory.getFont(FontFactory.HELVETICA, 7.5f, new Color(51, 65, 85));
             com.lowagie.text.Font head = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7.5f, Color.WHITE);
             doc.add(new Paragraph(title, titleFont));
             doc.add(new Paragraph("Generated " + DATE_TIME.format(generatedAt.atZone(z)) + " by SUMA Tracking Tool", small));
             doc.add(new Paragraph(subtitle, small));
-            doc.add(Chunk.NEWLINE);
-            PdfPTable table = new PdfPTable(headers.size());
-            table.setWidthPercentage(100);
-            table.setHeaderRows(1);
-            for (String h : headers) {
-                PdfPCell c = new PdfPCell(new Phrase(h, head));
-                c.setBackgroundColor(new Color(30, 58, 138));
-                c.setPadding(3);
-                table.addCell(c);
-            }
-            boolean alt = false;
-            for (var r : rows) {
-                for (String v : r) {
-                    PdfPCell c = new PdfPCell(new Phrase(v == null ? "" : v, small));
-                    c.setPadding(2.5f);
-                    if (alt) c.setBackgroundColor(new Color(241, 245, 249));
+            boolean first = true;
+            for (PdfSection sec : sections) {
+                if (!first) doc.newPage();
+                first = false;
+                if (sec.heading() != null) doc.add(new Paragraph(sec.heading(), sectionFont));
+                doc.add(Chunk.NEWLINE);
+                PdfPTable table = new PdfPTable(sec.headers().size());
+                table.setWidthPercentage(100);
+                table.setHeaderRows(1);
+                for (String h : sec.headers()) {
+                    PdfPCell c = new PdfPCell(new Phrase(h, head));
+                    c.setBackgroundColor(new Color(30, 58, 138));
+                    c.setPadding(3);
                     table.addCell(c);
                 }
-                alt = !alt;
+                boolean alt = false;
+                for (var r : sec.rows()) {
+                    for (String v : r) {
+                        PdfPCell c = new PdfPCell(new Phrase(v == null ? "" : v, small));
+                        c.setPadding(2.5f);
+                        if (alt) c.setBackgroundColor(new Color(241, 245, 249));
+                        table.addCell(c);
+                    }
+                    alt = !alt;
+                }
+                if (sec.rows().isEmpty()) {
+                    PdfPCell c = new PdfPCell(new Phrase("No records for the selected filters.", small));
+                    c.setColspan(sec.headers().size());
+                    table.addCell(c);
+                }
+                doc.add(table);
             }
-            if (rows.isEmpty()) {
-                PdfPCell c = new PdfPCell(new Phrase("No attendance records for the selected filters.", small));
-                c.setColspan(headers.size());
-                table.addCell(c);
-            }
-            doc.add(table);
             doc.close();
             return out.toByteArray();
         } catch (IOException | DocumentException e) {

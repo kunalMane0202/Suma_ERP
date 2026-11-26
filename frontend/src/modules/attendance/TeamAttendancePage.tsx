@@ -7,7 +7,7 @@ import type { LucideIcon } from 'lucide-react';
 import { FeedItem, IconTile, KeyValue, gridItem, gridParent } from '@/components/layout';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger, UrlTabs } from '@/components/ui/tabs';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect, Textarea } from '@/components/ui/input';
@@ -61,7 +61,7 @@ export default function TeamAttendancePage() {
     <>
       <PageHeader title="Team attendance"
         description={isLeadOnly ? 'Attendance for the projects you lead, including the monthly reports emailed to you.' : 'Who is working, on break or inactive, with daily and monthly attendance records for your scope.'} />
-      <Tabs defaultValue="live">
+      <UrlTabs fallback="live">
         <TabsList>
           <TabsTrigger value="live">Live</TabsTrigger>
           <TabsTrigger value="daily">Daily report</TabsTrigger>
@@ -74,7 +74,7 @@ export default function TeamAttendancePage() {
         <TabsContent value="monthly"><MonthlyTab /></TabsContent>
         <TabsContent value="delivery"><DeliveryTab /></TabsContent>
         <TabsContent value="history"><HistoryTab /></TabsContent>
-      </Tabs>
+      </UrlTabs>
     </>
   );
 }

@@ -171,6 +171,17 @@ class AttendanceIT extends IntegrationTest {
                     .andExpect(status().isOk()).andReturn();
             assertThat(x.getResponse().getContentAsByteArray().length).isGreaterThan(100);
         }
+        // monthly PDF carries the summary plus daily details, break timings and idle events on their own pages
+        var pdf = mvc.perform(auth(get("/api/v1/attendance/reports/export"), a).param("type", "monthly").param("format", "pdf")
+                        .param("year", String.valueOf(today.getYear())).param("month", String.valueOf(today.getMonthValue())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        var reader = new com.lowagie.text.pdf.PdfReader(pdf);
+        StringBuilder text = new StringBuilder();
+        var extractor = new com.lowagie.text.pdf.parser.PdfTextExtractor(reader);
+        for (int p = 1; p <= reader.getNumberOfPages(); p++) text.append(extractor.getTextFromPage(p));
+        assertThat(reader.getNumberOfPages()).isGreaterThanOrEqualTo(4);
+        assertThat(text.toString()).contains("Summary", "Daily details", "Break timings", "Idle events", emp.getEmployeeCode());
+        reader.close();
         // employees only see their own attendance
         var self = mvc.perform(auth(get("/api/v1/attendance/reports/daily"), e).param("date", today.toString())).andReturn();
         assertThat(json(self).get("rows")).hasSize(1);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useUrlNumber, useUrlState } from '@/hooks/useUrlState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FilterBar, SearchField } from '@/components/layout';
 import { Input } from '@/components/ui/input';
@@ -11,9 +11,9 @@ import type { Page } from '@/types/api';
 interface Row { id: string; actorUsername?: string; action: string; entityType?: string; entityId?: string; details?: string; ipAddress?: string; correlationId?: string; createdAt: string }
 
 export default function AuditPage() {
-  const [action, setAction] = useState('');
-  const [entityType, setEntityType] = useState('');
-  const [page, setPage] = useState(0);
+  const [action, setAction] = useUrlState('action');
+  const [entityType, setEntityType] = useUrlState('entity');
+  const [page, setPage] = useUrlNumber('page');
   const { data, error, loading, reload } = useApi<Page<Row>>('/audit', { action: action || undefined, entityType: entityType || undefined, page, size: 50 });
   return (
     <>

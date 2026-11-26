@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger, UrlTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
@@ -29,7 +29,7 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Configuration" description="Attendance policies, platform settings, roles and permissions. Every change is recorded in the audit trail." />
-      <Tabs defaultValue={first}>
+      <UrlTabs fallback={first}>
         <TabsList>
           {can('ATTENDANCE_MANAGE') && <TabsTrigger value="attendance">Attendance</TabsTrigger>}
           {can('ATTENDANCE_MANAGE') && <TabsTrigger value="breaks">Break policies</TabsTrigger>}
@@ -46,7 +46,7 @@ export default function SettingsPage() {
         <TabsContent value="roles"><Roles /></TabsContent>
         <TabsContent value="jobs"><Jobs /></TabsContent>
         <TabsContent value="email"><EmailLog /></TabsContent>
-      </Tabs>
+      </UrlTabs>
     </>
   );
 }

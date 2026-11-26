@@ -54,6 +54,10 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # Email has its own outbox with retries and a delivery log; an SMTP outage must not mark the app DOWN.
+    mail:
+      enabled: false
 
 springdoc:
   swagger-ui:

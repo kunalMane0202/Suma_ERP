@@ -4,7 +4,7 @@ import { Ban, Download, LogOut, Monitor, Plus, ShieldAlert, ShieldCheck, ShieldX
 import { FeedItem, IconTile, SearchField } from '@/components/layout';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger, UrlTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
@@ -41,7 +41,7 @@ export default function SecurityPage() {
   return (
     <>
       <PageHeader title="Login security & IP activity" description="Successful, failed, unknown-user and unauthenticated access with source IP addresses. Times are stored in UTC and shown in your local time. Approximate IP location is not proof of physical location." />
-      <Tabs defaultValue="overview">
+      <UrlTabs fallback="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="logins">Sign-ins</TabsTrigger><TabsTrigger value="anonymous">Unauthenticated</TabsTrigger>
           <TabsTrigger value="ip">IP activity</TabsTrigger><TabsTrigger value="sessions">Active sessions</TabsTrigger><TabsTrigger value="rules">IP rules</TabsTrigger>
@@ -52,7 +52,7 @@ export default function SecurityPage() {
         <TabsContent value="ip"><IpActivity /></TabsContent>
         <TabsContent value="sessions"><Sessions /></TabsContent>
         <TabsContent value="rules"><Rules /></TabsContent>
-      </Tabs>
+      </UrlTabs>
     </>
   );
 }

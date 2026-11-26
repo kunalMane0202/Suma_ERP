@@ -13,7 +13,7 @@ import { Input, NativeSelect, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger, UrlTabs } from '@/components/ui/tabs';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { Avatar, Can, EmptyState, ErrorState, PageHeader, Pagination } from '@/components/common';
@@ -31,7 +31,7 @@ export default function PeoplePage() {
   return (
     <>
       <PageHeader title="People & teams" description="Employees, roles, shifts, weekly offs, team membership and current workload." />
-      <Tabs defaultValue={can('USER_READ') ? 'people' : 'teams'}>
+      <UrlTabs fallback={can('USER_READ') ? 'people' : 'teams'}>
         <TabsList>
           {can('USER_READ') && <TabsTrigger value="people">Employees</TabsTrigger>}
           {can('TEAM_READ') && <TabsTrigger value="teams">Teams</TabsTrigger>}
@@ -42,7 +42,7 @@ export default function PeoplePage() {
         <TabsContent value="teams"><Teams /></TabsContent>
         <TabsContent value="workload"><Workload /></TabsContent>
         <TabsContent value="shifts"><Shifts /></TabsContent>
-      </Tabs>
+      </UrlTabs>
     </>
   );
 }

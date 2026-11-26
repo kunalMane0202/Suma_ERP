@@ -1,7 +1,7 @@
 import { Building2, Calendar, CalendarClock, CalendarDays, CalendarRange, Clock, Download, FileSpreadsheet, FolderKanban, Hourglass, Timer, Trophy, UsersRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { IconTile } from '@/components/layout';
-import { useState } from 'react';
+import { useUrlState } from '@/hooks/useUrlState';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
@@ -41,10 +41,10 @@ export default function ReportsPage() {
   const age = ageingColors(useTheme().theme === 'DARK');
   const { can, user } = useAuth();
   const lk = useLookups();
-  const [type, setType] = useState('productivity');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState(isoDate(new Date()));
-  const [projectId, setProjectId] = useState('');
+  const [type, setType] = useUrlState('report', 'productivity');
+  const [from, setFrom] = useUrlState('from');
+  const [to, setTo] = useUrlState('to', isoDate(new Date()));
+  const [projectId, setProjectId] = useUrlState('projectId');
   const def = TYPES.find((t) => t.key === type)!;
   const canOps = can('REPORT_VIEW');
   const { data, error, loading, reload } = useApi<Report>(canOps ? `/reports/${type}` : null, { from: from || undefined, to, projectId: projectId || undefined });
