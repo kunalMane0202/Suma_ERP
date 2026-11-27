@@ -43,7 +43,7 @@ public class TicketService {
             "PENDING", Set.of("IN_PROGRESS", "RESOLVED", "ASSIGNED"),
             "RESOLVED", Set.of("CLOSED", "REOPENED"),
             "CLOSED", Set.of("REOPENED"),
-            "REOPENED", Set.of("ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED"));
+            "REOPENED", Set.of("NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED"));
 
     private final TicketRepository tickets;
     private final TicketCommentRepository comments;
@@ -112,13 +112,10 @@ public class TicketService {
     @Transactional(readOnly = true)
     public PageResponse<TicketDtos.TicketSummary> list(AuthUser me, Filter f, int page, int size, String sort) {
         Instant now = Instant.now(clock);
+        String searchTerm = f.q() == null ? "" : f.q().trim();
         Specification<Ticket> spec = scopeSpec(me).and((root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
-            if (f.q() != null && !f.q().isBlank()) {
-                String like = "%" + f.q().toLowerCase() + "%";
-                ps.add(cb.or(cb.like(cb.lower(root.get("title")), like), cb.like(cb.lower(root.get("ticketNumber")), like),
-                        cb.like(cb.lower(root.get("externalId")), like)));
-            }
+            if (!searchTerm.isBlank()) ps.add(searchPredicate(root, cb, searchTerm));
             if (f.projectId() != null) ps.add(cb.equal(root.get("projectId"), f.projectId()));
             if (f.clientId() != null) ps.add(cb.equal(root.get("clientId"), f.clientId()));
             if (f.statuses() != null && !f.statuses().isEmpty()) ps.add(root.get("status").in(f.statuses()));
@@ -143,9 +140,63 @@ public class TicketService {
             case "updated" -> Sort.by(Sort.Direction.DESC, "updatedAt");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+        if (!searchTerm.isBlank()) {
+            Sort requestedSort = s;
+            spec = spec.and((root, query, cb) -> {
+                if (query.getResultType().equals(Ticket.class)) {
+                    List<jakarta.persistence.criteria.Order> orders = new ArrayList<>();
+                    orders.add(cb.asc(cb.<Integer>selectCase().when(exactSearchPredicate(root, cb, searchTerm), 0).otherwise(1)));
+                    for (Sort.Order order : requestedSort) {
+                        orders.add(order.isAscending() ? cb.asc(root.get(order.getProperty())) : cb.desc(root.get(order.getProperty())));
+                    }
+                    query.orderBy(orders);
+                }
+                return cb.conjunction();
+            });
+            s = Sort.unsorted();
+        }
         Page<Ticket> p = tickets.findAll(spec, PageRequest.of(page, Math.min(size, 200), s));
         Lookup l = lookup(p.getContent());
         return PageResponse.of(p, t -> summary(t, l, now));
+    }
+
+    private static Predicate searchPredicate(jakarta.persistence.criteria.Root<Ticket> root,
+                                             jakarta.persistence.criteria.CriteriaBuilder cb, String searchTerm) {
+        List<Predicate> keywords = new ArrayList<>();
+        for (String keyword : searchTerm.toLowerCase(Locale.ROOT).split("\\s+")) {
+            String like = "%" + escapeLike(keyword) + "%";
+            keywords.add(cb.or(cb.like(cb.lower(root.get("title")), like, '\\'),
+                    cb.like(cb.lower(root.get("ticketNumber")), like, '\\'),
+                    cb.like(cb.lower(root.get("externalId")), like, '\\'),
+                    cb.like(cb.lower(root.get("description")), like, '\\'),
+                    cb.like(cb.lower(root.get("reporterName")), like, '\\'),
+                    cb.like(cb.lower(root.get("reporterEmail")), like, '\\'),
+                    cb.like(cb.lower(root.get("status")), like, '\\'),
+                    cb.like(cb.lower(root.get("priority")), like, '\\'),
+                    cb.like(cb.lower(root.get("source")), like, '\\'),
+                    cb.like(cb.lower(root.get("customFields")), like, '\\')));
+        }
+        return cb.and(keywords.toArray(Predicate[]::new));
+    }
+
+    private static Predicate exactSearchPredicate(jakarta.persistence.criteria.Root<Ticket> root,
+                                                  jakarta.persistence.criteria.CriteriaBuilder cb, String searchTerm) {
+        String exact = searchTerm.toLowerCase(Locale.ROOT);
+        String exactJsonValue = "%\"" + escapeLike(exact) + "\"%";
+        return cb.or(cb.equal(cb.lower(root.get("title")), exact),
+                cb.equal(cb.lower(root.get("ticketNumber")), exact),
+                cb.equal(cb.lower(root.get("externalId")), exact),
+                cb.equal(cb.lower(root.get("description")), exact),
+                cb.equal(cb.lower(root.get("reporterName")), exact),
+                cb.equal(cb.lower(root.get("reporterEmail")), exact),
+                cb.equal(cb.lower(root.get("status")), exact),
+                cb.equal(cb.lower(root.get("priority")), exact),
+                cb.equal(cb.lower(root.get("source")), exact),
+                cb.like(cb.lower(root.get("customFields")), exactJsonValue, '\\'));
+    }
+
+    private static String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     @Transactional(readOnly = true)
@@ -232,12 +283,34 @@ public class TicketService {
         if (r.teamId() != null && !r.teamId().equals(t.getTeamId())) { record(t, me.id(), "UPDATED", "team", null, r.teamId().toString(), null); t.setTeamId(r.teamId()); }
         if (r.customFields() != null) {
             String before = t.getCustomFields();
-            t.setCustomFields(writeFields(customFields.clean(t.getProjectId(), r.customFields(), true)));
+            Map<String, Object> cleaned = new LinkedHashMap<>(customFields.clean(t.getProjectId(), r.customFields(), true));
+            readFields(before).forEach((key, value) -> {
+                if (key.startsWith("Imported: ")) cleaned.put(key, value);
+            });
+            t.setCustomFields(writeFields(cleaned));
             if (!java.util.Objects.equals(before, t.getCustomFields())) record(t, me.id(), "UPDATED", "customFields", null, null, "Custom fields edited");
         }
         t.setUpdatedAt(now);
         events.publishEvent(new TicketEvent("TICKET_UPDATED", t.getId(), me.id(), null));
         return detail(t);
+    }
+
+    @Transactional
+    public void updateImportedFields(Ticket t, Map<String, Object> importedFields, UUID actorId) {
+        if (importedFields.isEmpty()) return;
+        Map<String, Object> fields = new LinkedHashMap<>(readFields(t.getCustomFields()));
+        boolean changed = false;
+        for (Map.Entry<String, Object> entry : importedFields.entrySet()) {
+            if (entry.getKey().length() > 200) throw ApiException.badRequest("Imported column headers must be 200 characters or fewer");
+            if (!Objects.equals(fields.put(entry.getKey(), entry.getValue()), entry.getValue())) changed = true;
+        }
+        if (!changed) return;
+        String encoded = writeFields(fields);
+        if (encoded != null && encoded.length() > 65_536)
+            throw ApiException.badRequest("Imported ticket details exceed the 64 KB per-ticket limit");
+        t.setCustomFields(encoded);
+        record(t, actorId, "UPDATED", "importedFields", null, null,
+                "Imported columns: " + importedFields.keySet().stream().map(k -> k.replaceFirst("^Imported: ", "")).limit(10).toList());
     }
 
     @Transactional
@@ -323,6 +396,48 @@ public class TicketService {
             notifications.notify(t.getAssigneeId(), "TICKET_" + to, "Ticket " + t.getTicketNumber() + " " + to.toLowerCase(), t.getTitle(), "INFO", "Ticket", t.getId());
         }
         events.publishEvent(new TicketEvent("TICKET_STATUS_CHANGED", t.getId(), actorId, from + "->" + to));
+    }
+
+    @Transactional
+    public boolean applyImportedStatus(Ticket t, String target, UUID actorId) {
+        Optional<List<String>> path = statusTransitionPath(t.getStatus(), target);
+        if (path.isEmpty()) return false;
+        for (String next : path.get()) applyStatus(t, next, actorId, null);
+        return true;
+    }
+
+    static Optional<List<String>> statusTransitionPath(String from, String target) {
+        if (target.equals(from)) return Optional.of(List.of());
+        Map<String, String> previous = new HashMap<>();
+        Queue<String> pending = new ArrayDeque<>();
+        pending.add(from);
+        previous.put(from, null);
+        while (!pending.isEmpty() && !previous.containsKey(target)) {
+            String current = pending.remove();
+            for (String next : TRANSITIONS.getOrDefault(current, Set.of())) {
+                if (!previous.containsKey(next)) {
+                    previous.put(next, current);
+                    pending.add(next);
+                }
+            }
+        }
+        if (!previous.containsKey(target)) return Optional.empty();
+        List<String> path = new ArrayList<>();
+        for (String at = target; !at.equals(from); at = previous.get(at)) path.add(at);
+        Collections.reverse(path);
+        return Optional.of(List.copyOf(path));
+    }
+
+    @Transactional
+    public void updateImportedReporter(Ticket t, String reporterName, String reporterEmail, UUID actorId) {
+        if (reporterName != null && !reporterName.equals(t.getReporterName())) {
+            record(t, actorId, "UPDATED", "reporterName", t.getReporterName(), reporterName, "Imported from log sheet");
+            t.setReporterName(reporterName);
+        }
+        if (reporterEmail != null && !reporterEmail.equals(t.getReporterEmail())) {
+            record(t, actorId, "UPDATED", "reporterEmail", t.getReporterEmail(), reporterEmail, "Imported from log sheet");
+            t.setReporterEmail(reporterEmail);
+        }
     }
 
     @Transactional
@@ -495,7 +610,7 @@ public class TicketService {
 
     TicketDtos.TicketSummary summary(Ticket t, Lookup l, Instant now) {
         Instant end = t.isOpen() ? now : (t.getResolvedAt() != null ? t.getResolvedAt() : t.getUpdatedAt());
-        return new TicketDtos.TicketSummary(t.getId(), t.getTicketNumber(), t.getTitle(), t.getStatus(), t.getPriority(), t.getProjectId(),
+        return new TicketDtos.TicketSummary(t.getId(), t.getTicketNumber(), t.getExternalId(), t.getTitle(), t.getStatus(), t.getPriority(), t.getProjectId(),
                 l.projects().get(t.getProjectId()), t.getClientId(), l.clients().get(t.getClientId()), t.getAssigneeId(),
                 l.users().get(t.getAssigneeId()), t.getTeamId(), l.teams().get(t.getTeamId()), l.categories().get(t.getCategoryId()),
                 t.getSource(), t.getEscalationLevel(), t.getCreatedAt(), t.getUpdatedAt(), Duration.between(t.getCreatedAt(), end).toHours(),

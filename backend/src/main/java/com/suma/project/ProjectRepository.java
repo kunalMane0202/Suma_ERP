@@ -8,10 +8,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     boolean existsByCodeIgnoreCase(String code);
+    Optional<Project> findByCodeIgnoreCase(String code);
+    List<Project> findAllByNameIgnoreCase(String name);
     List<Project> findByStatus(String status);
     List<Project> findByClientId(UUID clientId);
     long countByStatus(String status);

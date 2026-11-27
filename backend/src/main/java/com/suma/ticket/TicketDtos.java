@@ -31,7 +31,7 @@ public final class TicketDtos {
     public record SlaInfo(Instant responseDueAt, Instant resolutionDueAt, Instant firstResponseAt, boolean responseBreached,
                           boolean resolutionBreached, boolean paused, String state, Long resolutionRemainingSeconds, String policyName) {}
 
-    public record TicketSummary(UUID id, String ticketNumber, String title, String status, String priority, UUID projectId,
+    public record TicketSummary(UUID id, String ticketNumber, String externalId, String title, String status, String priority, UUID projectId,
                                 String projectName, UUID clientId, String clientName, UUID assigneeId, String assigneeName,
                                 UUID teamId, String teamName, String categoryName, String source, int escalationLevel,
                                 Instant createdAt, Instant updatedAt, long ageHours, SlaInfo sla) {}

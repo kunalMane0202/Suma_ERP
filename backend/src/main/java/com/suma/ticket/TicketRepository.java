@@ -11,6 +11,7 @@ import java.util.UUID;
 
 public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecificationExecutor<Ticket> {
     Optional<Ticket> findByExternalSystemAndExternalId(String system, String externalId);
+    Optional<Ticket> findByTicketNumberAndProjectId(String ticketNumber, UUID projectId);
     boolean existsByExternalSystemAndExternalId(String system, String externalId);
 
     @Query("select t from Ticket t where t.status not in ('RESOLVED','CLOSED') and t.firstResponseAt is null and t.responseBreached = false and t.responseDueAt < :now and t.slaPausedAt is null")
